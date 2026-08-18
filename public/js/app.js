@@ -874,8 +874,8 @@ document.addEventListener('DOMContentLoaded', () => {
       sounds.playJoin();
       // If we are also in the call, reset stale PC and re-initiate
       if (isInVoice && partnerSocketId) {
-        webrtc.resetPeerConnection();
-        webrtc.initiateCall(partnerSocketId);
+        //webrtc.resetPeerConnection();
+        //webrtc.initiateCall(partnerSocketId);
       }
     } else {
       // Partner left the call but is still on the site
