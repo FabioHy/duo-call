@@ -207,7 +207,7 @@ io.on('connection', (socket) => {
   });
 
   // Chat System
-  socket.on('send-message', ({ text, senderName, senderAvatar, senderNameColor, type = 'text', timestamp }) => {
+  socket.on('send-message', ({ text, gifUrl, senderName, senderAvatar, senderNameColor, type = 'text', timestamp }) => {
     if (!socket.userKey) return;
     const user = activeSlots[socket.userKey];
     const defaultColor = socket.userKey === 'nao' ? '#00e676' : '#ff79c6';
@@ -219,8 +219,9 @@ io.on('connection', (socket) => {
       senderName: senderName || user?.username || (socket.userKey === 'nao' ? 'Nao' : 'Rayo'),
       senderAvatar: senderAvatar || user?.avatarUrl || '',
       senderNameColor: senderNameColor || user?.nameColor || defaultColor,
-      text: text,
-      type: type,
+      text: text || '',
+      gifUrl: gifUrl || null,
+      type: type || (gifUrl ? 'gif' : 'text'),
       timestamp: timestamp || new Date().toISOString()
     };
 

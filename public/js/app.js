@@ -85,6 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatMessages = document.getElementById('chatMessages');
   const chatInput = document.getElementById('chatInput');
   const btnSendMessage = document.getElementById('btnSendMessage');
+  const btnOpenGifPicker = document.getElementById('btnOpenGifPicker');
+  const gifPickerPopover = document.getElementById('gifPickerPopover');
+  const btnCloseGifPicker = document.getElementById('btnCloseGifPicker');
+  const inputGifSearch = document.getElementById('inputGifSearch');
+  const btnClearGifSearch = document.getElementById('btnClearGifSearch');
+  const gifCategoriesBar = document.getElementById('gifCategoriesBar');
+  const gifResultsContainer = document.getElementById('gifResultsContainer');
 
   // Profile Customization Modal Elements
   const profileModal = document.getElementById('profileModal');
@@ -993,6 +1000,185 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2600);
   }
 
+  // GIF Search & Tenor/Giphy Integration
+  let currentGifSearchDebounce = null;
+  let activeGifQuery = 'trending';
+
+  // Curated Fallback GIFs for instant loading
+  const CURATED_GIFS = {
+    trending: [
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmJsczRrbmx3bTFzYTRpMWdpbDNraWV4eXl5aWpuc25rbHN5dzJscSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/MDJ9IbxxvDUQM/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3h2OGQ2NGlraGJmN3VpNmZ1Mnl6cWJocjBvZWVwNDQ4NzhkMnl0NiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/BzyTuYCmvSORqs1ABM/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3h2OGQ2NGlraGJmN3VpNmZ1Mnl6cWJocjBvZWVwNDQ4NzhkMnl0NiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/ICOgUNjpvO0PC/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3h2OGQ2NGlraGJmN3VpNmZ1Mnl6cWJocjBvZWVwNDQ4NzhkMnl0NiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/mlvseq9yvZhba/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3h2OGQ2NGlraGJmN3VpNmZ1Mnl6cWJocjBvZWVwNDQ4NzhkMnl0NiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3h2OGQ2NGlraGJmN3VpNmZ1Mnl6cWJocjBvZWVwNDQ4NzhkMnl0NiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oriO0OEd9QIDdllqo/giphy.gif'
+    ],
+    'cute couple love': [
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjRsc2F0c2pwaGg5MHR5d3M4ZnhpZ3B5dmt4Z2s4bTZsMWk3a3VscCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/c76IJLufpNwSULPk77/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjRsc2F0c2pwaGg5MHR5d3M4ZnhpZ3B5dmt4Z2s4bTZsMWk3a3VscCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/26BRv0ThflsHCqDrG/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjRsc2F0c2pwaGg5MHR5d3M4ZnhpZ3B5dmt4Z2s4bTZsMWk3a3VscCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/L2z7dnOduqEow/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjRsc2F0c2pwaGg5MHR5d3M4ZnhpZ3B5dmt4Z2s4bTZsMWk3a3VscCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/R6gVNAxj2vzSaBaR9v/giphy.gif'
+    ],
+    'hug love': [
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2Rtc2k5NGwxc3g2ZXlnYmN5cnhjcW56bTZsb2lmcHJ3OXNkcWpucSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/du8yT5sunVaKFs94EU/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2Rtc2k5NGwxc3g2ZXlnYmN5cnhjcW56bTZsb2lmcHJ3OXNkcWpucSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/od5H3PmEG5EVq/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2Rtc2k5NGwxc3g2ZXlnYmN5cnhjcW56bTZsb2lmcHJ3OXNkcWpucSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/lrr9rHuoJOE0w/giphy.gif'
+    ]
+  };
+
+  async function searchGifs(query) {
+    activeGifQuery = query || 'trending';
+    if (gifResultsContainer) {
+      gifResultsContainer.innerHTML = '<div class="gif-loading-placeholder"><i class="ph-bold ph-spinner" style="font-size: 1.4rem; animation: spin 1s linear infinite; display: inline-block;"></i><br><br>Buscando GIFs... ✨</div>';
+    }
+
+    try {
+      const q = encodeURIComponent(query === 'trending' ? 'cute anime couple reaction' : query);
+      const url = `https://tenor.googleapis.com/v2/search?q=${q}&key=LIVDSRZULELA&limit=24&media_filter=gif,tinygif`;
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Tenor API error');
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const gifUrls = data.results.map(r => {
+          return r.media_formats?.gif?.url || r.media_formats?.tinygif?.url || r.url;
+        }).filter(Boolean);
+        renderGifs(gifUrls);
+        return;
+      }
+    } catch (e) {
+      console.warn('[GIF] Tenor API fallback:', e);
+    }
+
+    // GIPHY Fallback
+    try {
+      const q = encodeURIComponent(query === 'trending' ? 'cute reaction' : query);
+      const gUrl = `https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${q}&limit=24&rating=g`;
+      const response = await fetch(gUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.length > 0) {
+          const gifUrls = data.data.map(g => g.images?.fixed_height?.url || g.images?.original?.url).filter(Boolean);
+          renderGifs(gifUrls);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[GIF] Giphy API fallback:', e);
+    }
+
+    // Built-in curated fallback
+    const fallbackList = CURATED_GIFS[query] || CURATED_GIFS['trending'];
+    renderGifs(fallbackList);
+  }
+
+  function renderGifs(gifUrls) {
+    if (!gifResultsContainer) return;
+    if (!gifUrls || gifUrls.length === 0) {
+      gifResultsContainer.innerHTML = '<div class="gif-loading-placeholder">Nenhum GIF encontrado 😿</div>';
+      return;
+    }
+
+    gifResultsContainer.innerHTML = '';
+    gifUrls.forEach(url => {
+      const card = document.createElement('div');
+      card.className = 'gif-item-card';
+      card.innerHTML = `<img src="${url}" class="gif-item-img" loading="lazy" alt="GIF">`;
+      card.addEventListener('click', () => {
+        sendGifMessage(url);
+        closeGifPicker();
+      });
+      gifResultsContainer.appendChild(card);
+    });
+  }
+
+  function sendGifMessage(gifUrl) {
+    socket.emit('send-message', {
+      text: '',
+      gifUrl: gifUrl,
+      senderName: profile.username,
+      senderAvatar: profile.avatarUrl,
+      senderNameColor: profile.nameColor || (myUserKey === 'nao' ? '#00e676' : '#ff79c6'),
+      type: 'gif',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  function openGifPicker() {
+    if (!gifPickerPopover) return;
+    gifPickerPopover.classList.add('open');
+    if (inputGifSearch) inputGifSearch.focus();
+    if (!gifResultsContainer.hasChildNodes() || gifResultsContainer.querySelector('.gif-loading-placeholder')) {
+      searchGifs(activeGifQuery);
+    }
+  }
+
+  function closeGifPicker() {
+    if (gifPickerPopover) {
+      gifPickerPopover.classList.remove('open');
+    }
+  }
+
+  if (btnOpenGifPicker) {
+    btnOpenGifPicker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (gifPickerPopover && gifPickerPopover.classList.contains('open')) {
+        closeGifPicker();
+      } else {
+        openGifPicker();
+      }
+    });
+  }
+
+  if (btnCloseGifPicker) {
+    btnCloseGifPicker.addEventListener('click', closeGifPicker);
+  }
+
+  if (inputGifSearch) {
+    inputGifSearch.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      if (btnClearGifSearch) btnClearGifSearch.classList.toggle('visible', !!val);
+      clearTimeout(currentGifSearchDebounce);
+      currentGifSearchDebounce = setTimeout(() => {
+        searchGifs(val || 'trending');
+      }, 350);
+    });
+  }
+
+  if (btnClearGifSearch) {
+    btnClearGifSearch.addEventListener('click', () => {
+      inputGifSearch.value = '';
+      btnClearGifSearch.classList.remove('visible');
+      searchGifs('trending');
+      inputGifSearch.focus();
+    });
+  }
+
+  if (gifCategoriesBar) {
+    gifCategoriesBar.addEventListener('click', (e) => {
+      const pill = e.target.closest('.gif-category-pill');
+      if (pill) {
+        gifCategoriesBar.querySelectorAll('.gif-category-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const q = pill.dataset.query;
+        if (inputGifSearch) inputGifSearch.value = '';
+        if (btnClearGifSearch) btnClearGifSearch.classList.remove('visible');
+        searchGifs(q);
+      }
+    });
+  }
+
+  // Close GIF popover on outside click
+  document.addEventListener('click', (e) => {
+    if (gifPickerPopover && gifPickerPopover.classList.contains('open')) {
+      if (!gifPickerPopover.contains(e.target) && e.target !== btnOpenGifPicker && !btnOpenGifPicker?.contains(e.target)) {
+        closeGifPicker();
+      }
+    }
+  });
+
   // Chat Messaging & Deduplication
   const renderedMessageIds = new Set();
 
@@ -1039,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function appendChatMessage(msg) {
-    const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + msg.text);
+    const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + (msg.gifUrl || msg.text));
     if (renderedMessageIds.has(msgKey)) return;
     renderedMessageIds.add(msgKey);
 
@@ -1050,6 +1236,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const authorColor = msg.senderNameColor || (isMine ? (profile.nameColor || '#00e676') : (partnerProfile.nameColor || '#ff79c6'));
     const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    let mediaContent = '';
+    if (msg.gifUrl) {
+      mediaContent = `
+        <div class="chat-bubble-gif-wrap">
+          <img src="${escapeHTML(msg.gifUrl)}" class="chat-bubble-gif-img" alt="GIF" loading="lazy" />
+        </div>
+      `;
+    }
+
+    const textContent = msg.text ? `<div class="chat-bubble-text">${escapeHTML(msg.text)}</div>` : '';
+
     bubbleRow.innerHTML = `
       <div class="chat-bubble-avatar" style="${msg.senderAvatar ? `background-image: url('${msg.senderAvatar}');` : ''}">
         ${msg.senderAvatar ? '' : (isMine ? profile.avatarEmoji : partnerProfile.avatarEmoji)}
@@ -1059,12 +1256,22 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="chat-bubble-author" style="color: ${authorColor};">${escapeHTML(msg.senderName || 'Usuário')}</span>
           <span class="chat-bubble-time">${time}</span>
         </div>
-        <div class="chat-bubble-text">${escapeHTML(msg.text || '')}</div>
+        ${textContent}
+        ${mediaContent}
       </div>
     `;
 
     chatMessages.appendChild(bubbleRow);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    if (msg.gifUrl) {
+      const img = bubbleRow.querySelector('.chat-bubble-gif-img');
+      if (img) {
+        img.onload = () => {
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+      }
+    }
   }
 
   function escapeHTML(str) {
