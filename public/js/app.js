@@ -199,6 +199,30 @@ document.addEventListener('DOMContentLoaded', () => {
       if (track.kind === 'video') {
         const videoStream = (stream && stream.getVideoTracks().length > 0) ? stream : new MediaStream([track]);
         activeStreamVideo.srcObject = videoStream;
+        //debug
+        console.log('[DEBUG] video element:', activeStreamVideo);
+        console.log('[DEBUG] video tracks:', videoStream.getVideoTracks());
+        console.log('[DEBUG] video readyState:', activeStreamVideo.readyState);
+        console.log('[DEBUG] video dimensions:', {
+          width: activeStreamVideo.videoWidth,
+          height: activeStreamVideo.videoHeight
+        });
+
+        activeStreamVideo.onloadedmetadata = () => {
+          console.log('[DEBUG] loadedmetadata:', {
+            width: activeStreamVideo.videoWidth,
+            height: activeStreamVideo.videoHeight
+          });
+        };
+
+        activeStreamVideo.onplaying = () => {
+          console.log('[DEBUG] VIDEO PLAYING');
+        };
+
+        activeStreamVideo.onpause = () => {
+          console.log('[DEBUG] VIDEO PAUSED');
+        };
+        //fim do debug
         activeStreamVideo.muted = true;
 
         const tryPlayVideo = () => {
@@ -235,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const resumeAudio = () => {
             partnerAudio.play().then(() => {
               window.removeEventListener('click', resumeAudio);
-            }).catch(() => {});
+            }).catch(() => { });
           };
           window.addEventListener('click', resumeAudio);
         });
@@ -1036,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const q = encodeURIComponent(query === 'trending' ? 'cute anime couple reaction' : query);
       const url = `https://tenor.googleapis.com/v2/search?q=${q}&key=LIVDSRZULELA&limit=24&media_filter=gif,tinygif`;
-      
+
       const response = await fetch(url);
       if (!response.ok) throw new Error('Tenor API error');
       const data = await response.json();
