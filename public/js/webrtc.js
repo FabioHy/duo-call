@@ -341,7 +341,7 @@ class WebRTCManager {
         // Standard browser getDisplayMedia
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: 'always', frameRate: { ideal: 30, max: 60 } },
-          audio: withAudio
+          audio: false
         });
       }
 
