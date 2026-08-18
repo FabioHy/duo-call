@@ -243,7 +243,9 @@ class WebRTCManager {
           await pc.setLocalDescription();
           console.log('[DEBUG] Depois do setLocalDescription');
 
-          console.log('[DEBUG] Local description:', pc.localDescription);
+          //console.log('[DEBUG] Local description:', pc.localDescription);
+          console.log('[DEBUG] ANSWER SDP COMPLETO:');
+          console.log(pc.localDescription.sdp);
 
           console.log('[DEBUG] Enviando signal-answer...');
           this.socket.emit('signal-answer', {
