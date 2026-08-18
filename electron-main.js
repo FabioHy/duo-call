@@ -137,6 +137,21 @@ function startInternalServer() {
       broadcastAvailableSlots(io);
     });
 
+    // Call State (In Call / Not In Call)
+    socket.on('call-state-changed', ({ isInCall }) => {
+      if (!socket.userKey || !activeSlots[socket.userKey]) return;
+      activeSlots[socket.userKey].isInCall = isInCall;
+      activeSlots[socket.userKey].statusText = isInCall ? 'Em chamada' : 'Online';
+
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-call-state-changed', {
+          userKey: socket.userKey,
+          isInCall
+        });
+      }
+    });
+
     socket.on('update-media-state', (mediaState) => {
       if (!socket.userKey || !activeSlots[socket.userKey]) return;
       const user = activeSlots[socket.userKey];

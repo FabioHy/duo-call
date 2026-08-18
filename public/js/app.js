@@ -370,6 +370,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     applyProfileUI();
 
+    // Set WebRTC Perfect Negotiation role
+    webrtc.setUserRole(userKey);
+
     // Hide Login Overlay smoothly
     userSelectOverlay.classList.add('hidden');
 
