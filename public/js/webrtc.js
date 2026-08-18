@@ -377,7 +377,7 @@ class WebRTCManager {
             chromeMediaSourceId: sourceId,
             maxWidth: 1920,
             maxHeight: 1080,
-            maxFrameRate: 30
+            maxFrameRate: 60
           }
         };
         try {
@@ -401,6 +401,7 @@ class WebRTCManager {
       console.log('[WebRTC] Screen captured successfully');
 
       const videoTrack = stream.getVideoTracks()[0];
+      videoTrack.contentHint = 'detail';
       videoTrack.onended = () => this.stopScreenShare();
 
       if (this.targetSocketId) {
@@ -410,8 +411,31 @@ class WebRTCManager {
 
         if (videoSender) {
           await videoSender.replaceTrack(videoTrack);
+
+          const parameters = videoSender.getParameters();
+
+          if (!parameters.encodings) {
+            parameters.encodings = [{}];
+          }
+
+          parameters.encodings[0].maxBitrate = 8_000_000;
+          parameters.encodings[0].maxFramerate = 60;
+
+          await videoSender.setParameters(parameters);
         } else {
-          pc.addTrack(videoTrack, stream);
+          const sender = pc.addTrack(videoTrack, stream);
+
+          const parameters = sender.getParameters();
+
+          if (!parameters.encodings) {
+            parameters.encodings = [{}];
+          }
+
+          parameters.encodings[0].maxBitrate = 8_000_000;
+          parameters.encodings[0].maxFramerate = 60;
+
+          await sender.setParameters(parameters);
+
           // onnegotiationneeded will fire and renegotiate automatically
         }
       }
