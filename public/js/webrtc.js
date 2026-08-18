@@ -314,6 +314,7 @@ class WebRTCManager {
   // ─── Screen Share ─────────────────────────────────────────────────────────
 
   async startScreenShareWithSource(sourceId = null, withAudio = true) {
+    console.log('[WebRTC] sourceId recebido:', sourceId);
     try {
       let stream;
 
