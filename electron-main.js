@@ -339,7 +339,10 @@ ipcMain.handle('toggle-fullscreen', () => {
 });
 
 app.whenReady().then(() => {
-  startInternalServer();
+  if (process.env.DUO_SKIP_SERVER !== '1') {
+    startInternalServer();
+  }
+
   setTimeout(() => {
     createWindow();
   }, 500);
