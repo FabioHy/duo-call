@@ -122,8 +122,34 @@ class WebRTCManager {
 
     // 3. Remote track receiver
     pc.ontrack = ({ track, streams }) => {
-      console.log('[WebRTC] Remote track received:', track.kind, 'ReadyState:', track.readyState);
-      const stream = (streams && streams[0]) ? streams[0] : new MediaStream([track]);
+      console.log(
+        '[WebRTC] Remote track received:',
+        track.kind,
+        'ReadyState:',
+        track.readyState
+      );
+
+      const stream = (streams && streams[0])
+        ? streams[0]
+        : new MediaStream([track]);
+
+      if (track.kind === 'video') {
+        setInterval(async () => {
+          const stats = await pc.getStats();
+
+          stats.forEach(report => {
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              console.log('[DEBUG] INBOUND VIDEO:', {
+                packetsReceived: report.packetsReceived,
+                framesReceived: report.framesReceived,
+                framesDecoded: report.framesDecoded,
+                bytesReceived: report.bytesReceived
+              });
+            }
+          });
+        }, 2000);
+      }
+
       if (this.callbacks.onRemoteStream) {
         this.callbacks.onRemoteStream(stream, track);
       }
