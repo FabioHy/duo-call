@@ -138,20 +138,11 @@ class WebRTCManager {
           const stats = await pc.getStats();
 
           stats.forEach(report => {
-            if (report.type === 'inbound-rtp' && report.kind === 'video') {
-              console.log('[DEBUG] INBOUND VIDEO:', {
-                packetsReceived: report.packetsReceived,
-                framesReceived: report.framesReceived,
-                framesDecoded: report.framesDecoded,
-                bytesReceived: report.bytesReceived
-              });
+            if (report.type === 'inbound-rtp') {
+              console.log('[DEBUG] INBOUND:', report);
             }
           });
         }, 2000);
-      }
-
-      if (this.callbacks.onRemoteStream) {
-        this.callbacks.onRemoteStream(stream, track);
       }
     };
 
