@@ -99,16 +99,31 @@ class WebRTCManager {
     // 1. ICE candidate sender
     pc.onicecandidate = ({ candidate }) => {
       console.log('[DEBUG] ICE candidate event:', candidate);
-      console.log('[DEBUG] ICE gathering state:', pc.iceGatheringState);
+
+      if (candidate) {
+        console.log('[DEBUG] ICE candidate string:', candidate.candidate);
+        console.log('[DEBUG] ICE candidate type:', candidate.type);
+        console.log('[DEBUG] ICE candidate protocol:', candidate.protocol);
+      }
 
       if (candidate && this.targetSocketId) {
-        console.log('[DEBUG] Enviando ICE candidate:', candidate.candidate);
+        console.log('[DEBUG] Enviando ICE candidate para:', this.targetSocketId);
 
         this.socket.emit('signal-ice-candidate', {
           targetSocketId: this.targetSocketId,
           candidate
         });
       }
+    };
+
+    pc.onicecandidateerror = (event) => {
+      console.error('[WebRTC] ICE candidate error:', {
+        url: event.url,
+        errorCode: event.errorCode,
+        errorText: event.errorText,
+        address: event.address,
+        port: event.port
+      });
     };
 
     pc.onicegatheringstatechange = () => {
