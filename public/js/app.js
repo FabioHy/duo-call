@@ -747,28 +747,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Socket Peer Events
+
+  // peer-joined: the server marks ONE side as initiator:true.
+  // Only that side creates an offer. The other side just waits for the offer via handleOffer.
   socket.on('peer-joined', ({ peer, initiator }) => {
     partnerSocketId = peer.socketId;
     isConnectedWithPartner = true;
     updatePartnerData(peer);
-    showToast(`${peer.username} conectou na chamada! ✨`);
+    showToast(`${peer.username} conectou! ✨`);
 
-    if (initiator) {
+    if (initiator && isInVoice) {
+      // Reset any stale PC before initiating a fresh connection
+      webrtc.resetPeerConnection();
       webrtc.initiateCall(peer.socketId);
     }
+    // If not initiator: wait for the other side's offer via handleOffer
   });
 
+  // peer-existing: sent to the user who JUST logged in when the partner is already here.
+  // Do NOT call initiateCall — the partner will send us an offer via peer-joined(initiator:true).
   socket.on('peer-existing', ({ peer }) => {
     partnerSocketId = peer.socketId;
     isConnectedWithPartner = true;
     updatePartnerData(peer);
-    webrtc.initiateCall(peer.socketId);
+    // No initiateCall here — we wait for the partner's offer
   });
 
   socket.on('peer-left', ({ username }) => {
     showToast(`${username || 'Namorada'} saiu do site`);
     partnerSocketId = null;
     isConnectedWithPartner = false;
+    // Clear the stale peer connection — they are gone
+    webrtc.resetPeerConnection();
     partnerCircleItem.classList.add('hidden');
     partnerStatusBadge.classList.add('offline');
     sidebarPartnerUser.classList.add('is-offline');
@@ -788,8 +798,9 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarPartnerSub.textContent = 'Em chamada';
       showToast(`${partnerProfile.username} entrou na chamada! 🎧`);
       sounds.playJoin();
-      // Initiate WebRTC if we are also in call
+      // If we are also in the call, reset stale PC and re-initiate
       if (isInVoice && partnerSocketId) {
+        webrtc.resetPeerConnection();
         webrtc.initiateCall(partnerSocketId);
       }
     } else {

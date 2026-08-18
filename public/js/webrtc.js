@@ -319,6 +319,20 @@ class WebRTCManager {
     }
   }
 
+  // Reset only the peer connection (keep local/screen streams alive).
+  // Call this before re-initiating when the partner rejoins the call.
+  resetPeerConnection() {
+    if (this.peerConnection) {
+      this.peerConnection.ontrack = null;
+      this.peerConnection.onicecandidate = null;
+      this.peerConnection.onconnectionstatechange = null;
+      this.peerConnection.oniceconnectionstatechange = null;
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    this.iceCandidateQueue = [];
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   close() {
