@@ -83,6 +83,7 @@ io.on('connection', (socket) => {
 
     const defaultName = userKey === 'nao' ? 'Nao' : 'Rayo';
     const defaultEmoji = userKey === 'nao' ? '🐺' : '🌸';
+    const defaultColor = userKey === 'nao' ? '#00e676' : '#ff79c6';
 
     const userData = {
       socketId: socket.id,
@@ -90,6 +91,7 @@ io.on('connection', (socket) => {
       username: profile?.username || defaultName,
       avatarUrl: profile?.avatarUrl || '',
       avatarEmoji: profile?.avatarEmoji || defaultEmoji,
+      nameColor: profile?.nameColor || defaultColor,
       isMuted: false,
       isScreenSharing: false,
       isInCall: false,
@@ -142,7 +144,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Update Profile (Name, photo)
+  // Update Profile (Name, photo, nameColor)
   socket.on('update-profile', (updatedProfile) => {
     if (!socket.userKey || !activeSlots[socket.userKey]) return;
     const user = activeSlots[socket.userKey];
@@ -205,9 +207,10 @@ io.on('connection', (socket) => {
   });
 
   // Chat System
-  socket.on('send-message', ({ text, senderName, senderAvatar, type = 'text', timestamp }) => {
+  socket.on('send-message', ({ text, senderName, senderAvatar, senderNameColor, type = 'text', timestamp }) => {
     if (!socket.userKey) return;
     const user = activeSlots[socket.userKey];
+    const defaultColor = socket.userKey === 'nao' ? '#00e676' : '#ff79c6';
 
     const messageData = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -215,6 +218,7 @@ io.on('connection', (socket) => {
       senderUserKey: socket.userKey,
       senderName: senderName || user?.username || (socket.userKey === 'nao' ? 'Nao' : 'Rayo'),
       senderAvatar: senderAvatar || user?.avatarUrl || '',
+      senderNameColor: senderNameColor || user?.nameColor || defaultColor,
       text: text,
       type: type,
       timestamp: timestamp || new Date().toISOString()

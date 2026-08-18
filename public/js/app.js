@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatMessages = document.getElementById('chatMessages');
   const chatInput = document.getElementById('chatInput');
   const btnSendMessage = document.getElementById('btnSendMessage');
-  const btnReactionHeart = document.getElementById('btnReactionHeart');
 
   // Profile Customization Modal Elements
   const profileModal = document.getElementById('profileModal');
@@ -93,6 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileAvatarInput = document.getElementById('fileAvatarInput');
   const inputProfileName = document.getElementById('inputProfileName');
   const inputProfileUrl = document.getElementById('inputProfileUrl');
+  const chatColorPalette = document.getElementById('chatColorPalette');
+  const inputCustomNameColor = document.getElementById('inputCustomNameColor');
+  const labelCustomColor = document.getElementById('labelCustomColor');
   const btnCancelProfile = document.getElementById('btnCancelProfile');
   const btnSaveProfile = document.getElementById('btnSaveProfile');
 
@@ -106,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let partnerSocketId = null;
   let isConnectedWithPartner = false;
   let tempAvatarDataUrl = '';
+  let tempNameColor = '#00e676';
 
   // Hide call-only buttons until user enters a call
   const callOnlyBtns = document.querySelectorAll('.call-only-btn');
@@ -117,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     username: 'Você',
     avatarUrl: '',
     avatarEmoji: '✨',
+    nameColor: '#00e676',
     statusText: 'Em chamada'
   };
 
@@ -124,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     username: 'Namorada',
     avatarUrl: '',
     avatarEmoji: '🌸',
+    nameColor: '#ff79c6',
     statusText: 'Aguardando...'
   };
 
@@ -302,11 +307,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedName = localStorage.getItem(`duo_name_${userKey}`) || (userKey === 'nao' ? 'Nao' : 'Rayo');
     const savedAvatar = localStorage.getItem(`duo_avatar_${userKey}`) || '';
     const defaultEmoji = userKey === 'nao' ? '🐺' : '🌸';
+    const defaultColor = userKey === 'nao' ? '#00e676' : '#ff79c6';
+    const savedColor = localStorage.getItem(`duo_color_${userKey}`) || defaultColor;
 
     const userProfile = {
       username: savedName,
       avatarUrl: savedAvatar,
-      avatarEmoji: defaultEmoji
+      avatarEmoji: defaultEmoji,
+      nameColor: savedColor
     };
 
     socket.emit('select-user', { userKey, profile: userProfile });
@@ -339,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
       username: userData.username,
       avatarUrl: userData.avatarUrl,
       avatarEmoji: userData.avatarEmoji,
+      nameColor: userData.nameColor || (userKey === 'nao' ? '#00e676' : '#ff79c6'),
       statusText: 'Em chamada'
     };
 
@@ -347,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         username: partner.username || (partnerKey === 'nao' ? 'Nao' : 'Rayo'),
         avatarUrl: partner.avatarUrl || '',
         avatarEmoji: partner.avatarEmoji || (partnerKey === 'nao' ? '🐺' : '🌸'),
+        nameColor: partner.nameColor || (partnerKey === 'nao' ? '#00e676' : '#ff79c6'),
         statusText: 'Em chamada'
       };
       isConnectedWithPartner = true;
@@ -359,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         username: partnerKey === 'nao' ? 'Nao' : 'Rayo',
         avatarUrl: '',
         avatarEmoji: partnerKey === 'nao' ? '🐺' : '🌸',
+        nameColor: partnerKey === 'nao' ? '#00e676' : '#ff79c6',
         statusText: 'Aguardando...'
       };
       isConnectedWithPartner = false;
@@ -710,10 +721,52 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Profile Customization Modal Logic
+  function highlightSelectedColorSwatch(color) {
+    if (!chatColorPalette) return;
+    const swatches = chatColorPalette.querySelectorAll('.color-swatch-btn');
+    let matchedPreset = false;
+    swatches.forEach(swatch => {
+      if (swatch.dataset.color.toLowerCase() === color.toLowerCase()) {
+        swatch.classList.add('active');
+        matchedPreset = true;
+      } else {
+        swatch.classList.remove('active');
+      }
+    });
+
+    if (labelCustomColor) {
+      if (matchedPreset) {
+        labelCustomColor.classList.remove('active');
+      } else {
+        labelCustomColor.classList.add('active');
+        if (inputCustomNameColor) inputCustomNameColor.value = color;
+      }
+    }
+  }
+
+  if (chatColorPalette) {
+    chatColorPalette.addEventListener('click', (e) => {
+      const swatch = e.target.closest('.color-swatch-btn');
+      if (swatch) {
+        tempNameColor = swatch.dataset.color;
+        highlightSelectedColorSwatch(tempNameColor);
+      }
+    });
+  }
+
+  if (inputCustomNameColor) {
+    inputCustomNameColor.addEventListener('input', (e) => {
+      tempNameColor = e.target.value;
+      highlightSelectedColorSwatch(tempNameColor);
+    });
+  }
+
   function openProfileModal() {
     inputProfileName.value = profile.username;
     inputProfileUrl.value = profile.avatarUrl || '';
     tempAvatarDataUrl = profile.avatarUrl;
+    tempNameColor = profile.nameColor || (myUserKey === 'nao' ? '#00e676' : '#ff79c6');
+    highlightSelectedColorSwatch(tempNameColor);
     setAvatarElement(profileModalAvatarPreview, profile.avatarUrl, profile.avatarEmoji);
     profileModal.classList.add('open');
   }
@@ -756,10 +809,12 @@ document.addEventListener('DOMContentLoaded', () => {
       profile.username = newName;
     }
     profile.avatarUrl = tempAvatarDataUrl;
+    profile.nameColor = tempNameColor;
 
     if (myUserKey) {
       localStorage.setItem(`duo_name_${myUserKey}`, profile.username);
       localStorage.setItem(`duo_avatar_${myUserKey}`, profile.avatarUrl);
+      localStorage.setItem(`duo_color_${myUserKey}`, profile.nameColor);
     }
 
     applyProfileUI();
@@ -897,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const partnerKey = myUserKey === 'nao' ? 'rayo' : 'nao';
     partnerProfile.username = peer.username || (partnerKey === 'nao' ? 'Nao' : 'Rayo');
     partnerProfile.avatarUrl = peer.avatarUrl || '';
+    partnerProfile.nameColor = peer.nameColor || (partnerKey === 'nao' ? '#00e676' : '#ff79c6');
     partnerSocketId = peer.socketId;
     const peerIsInCall = peer.isInCall || false;
     partnerProfile.statusText = peerIsInCall ? 'Em chamada' : 'Online';
@@ -918,8 +974,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sounds.playHeartPop();
     socket.emit('send-reaction', { reaction: '💖', sound: 'heart' });
   }
-
-  btnReactionHeart.addEventListener('click', triggerHeart);
 
   socket.on('peer-reaction', ({ reaction, sound }) => {
     createFloatingParticle(reaction);
@@ -950,6 +1004,7 @@ document.addEventListener('DOMContentLoaded', () => {
       text,
       senderName: profile.username,
       senderAvatar: profile.avatarUrl,
+      senderNameColor: profile.nameColor || (myUserKey === 'nao' ? '#00e676' : '#ff79c6'),
       type: 'text',
       timestamp: new Date().toISOString()
     });
@@ -992,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bubbleRow.className = 'chat-bubble-row';
 
     const isMine = (msg.senderUserKey === myUserKey) || (msg.senderId === socket.id) || (msg.senderName === profile.username);
-    const authorColor = isMine ? '#00e676' : '#ff79c6';
+    const authorColor = msg.senderNameColor || (isMine ? (profile.nameColor || '#00e676') : (partnerProfile.nameColor || '#ff79c6'));
     const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     bubbleRow.innerHTML = `

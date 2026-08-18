@@ -201,26 +201,12 @@
         <section class="chat-stream-section">
           
           <!-- Chat Messages Flow -->
-          <div class="chat-messages-scroll" id="chatMessages">
-            <div class="chat-bubble-row">
-              <div class="chat-bubble-avatar" id="chatBotAvatar">💖</div>
-              <div class="chat-bubble-content">
-                <div class="chat-bubble-header">
-                  <span class="chat-bubble-author" style="color: var(--accent-green);">Duo</span>
-                  <span class="chat-bubble-time">Hoje</span>
-                </div>
-                <div class="chat-bubble-text">
-                  Conversa privada conectada. Fale, compartilhe a tela ou envie mensagens aqui! ✨
-                </div>
-              </div>
-            </div>
-          </div>
+          <div class="chat-messages-scroll" id="chatMessages"></div>
 
           <!-- Chat Input Bar -->
           <div class="chat-input-bar-container">
             <div class="chat-input-box">
               <input type="text" class="chat-text-input" id="chatInput" placeholder="Conversar com sua namorada...">
-              <button class="chat-action-btn" id="btnReactionHeart" title="Enviar Coração">💖</button>
               <button class="chat-action-btn" id="btnSendMessage" title="Enviar mensagem">
                 <i class="ph-bold ph-paper-plane-right"></i>
               </button>
@@ -248,15 +234,17 @@
         </div>
 
         <div class="sources-grid-container" id="sourcesGridContainer">
-          <!-- Populated dynamically with live screen/window thumbnails -->
+          <!-- Sources dynamically rendered by app.js -->
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
-          <label style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="checkShareAudio" checked style="accent-color: var(--accent-green);">
-            <span>Compartilhar áudio do sistema (Jogo/PC)</span>
+        <!-- Options Row & Action Buttons -->
+        <div class="screen-picker-footer">
+          <label class="screen-audio-toggle" title="Transmitir o som do sistema/aplicativo">
+            <input type="checkbox" id="checkShareAudio" checked>
+            <span>Incluir áudio do sistema</span>
           </label>
-          <div style="display: flex; gap: 10px;">
+
+          <div style="display: flex; gap: 8px;">
             <button class="btn-modal-cancel" id="btnCancelScreenPicker" style="padding: 8px 18px;">Cancelar</button>
             <button class="btn-modal-save" id="btnConfirmScreenShare" style="padding: 8px 24px;">Transmitir ao Vivo</button>
           </div>
@@ -277,6 +265,24 @@
         <div class="profile-form-group">
           <label class="profile-label">Seu Nome de Exibição</label>
           <input type="text" class="profile-text-input" id="inputProfileName" placeholder="Ex: Nao">
+        </div>
+
+        <div class="profile-form-group">
+          <label class="profile-label">Cor do Nome no Chat</label>
+          <div class="chat-color-palette" id="chatColorPalette">
+            <button type="button" class="color-swatch-btn" data-color="#00e676" style="--swatch-color: #00e676;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#ff79c6" style="--swatch-color: #ff79c6;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#00b0ff" style="--swatch-color: #00b0ff;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#bd93f9" style="--swatch-color: #bd93f9;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#ffb86c" style="--swatch-color: #ffb86c;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#ff5555" style="--swatch-color: #ff5555;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#f1fa8c" style="--swatch-color: #f1fa8c;"></button>
+            <button type="button" class="color-swatch-btn" data-color="#8be9fd" style="--swatch-color: #8be9fd;"></button>
+            <label class="color-picker-custom-label" id="labelCustomColor" title="Escolher cor personalizada">
+              <i class="ph ph-palette"></i>
+              <input type="color" id="inputCustomNameColor" value="#00e676">
+            </label>
+          </div>
         </div>
 
         <div class="profile-form-group">
