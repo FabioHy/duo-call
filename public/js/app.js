@@ -107,6 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let isConnectedWithPartner = false;
   let tempAvatarDataUrl = '';
 
+  // Hide call-only buttons until user enters a call
+  const callOnlyBtns = document.querySelectorAll('.call-only-btn');
+  function showCallButtons() { callOnlyBtns.forEach(b => b.classList.remove('not-in-call')); }
+  function hideCallButtons() { callOnlyBtns.forEach(b => b.classList.add('not-in-call')); }
+  hideCallButtons(); // hidden by default
+
   let profile = {
     username: 'Você',
     avatarUrl: '',
@@ -367,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         vad.stop();
         isInVoice = false;
       }
+      hideCallButtons();
       socket.emit('logout-user');
       myUserKey = null;
       userSelectOverlay.classList.remove('hidden');
@@ -392,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navStatusDot.classList.remove('offline');
       navStatusText.textContent = 'Em chamada';
       sidebarLocalSub.textContent = 'Em chamada';
+      showCallButtons();
       socket.emit('call-state-changed', { isInCall: true });
     } catch (e) {
       console.warn('Microphone access warning:', e);
@@ -637,6 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarLocalShareBadge.classList.remove('visible');
       streamViewport.classList.remove('visible', 'stream-is-fullscreen');
       callCenterCard.classList.remove('screenshare-active');
+      hideCallButtons();
       socket.emit('call-state-changed', { isInCall: false });
       sounds.playLeave();
       showToast('Chamada encerrada 🔇');

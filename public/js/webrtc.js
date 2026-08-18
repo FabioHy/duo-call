@@ -277,10 +277,14 @@ class WebRTCManager {
         const videoSender = senders.find(s => s.track && s.track.kind === 'video');
 
         if (videoSender) {
+          // Replace existing video sender — triggers renegotiation automatically via onnegotiationneeded
           await videoSender.replaceTrack(screenVideoTrack);
+          // Force a new offer so the remote peer receives the video track
+          await this.initiateCall(this.targetSocketId);
         } else {
+          // No video sender yet — add the track and send a new offer
           this.peerConnection.addTrack(screenVideoTrack, this.screenStream);
-          this.renegotiate();
+          await this.initiateCall(this.targetSocketId);
         }
       }
 
@@ -308,8 +312,9 @@ class WebRTCManager {
       const videoSender = senders.find(s => s.track && s.track.kind === 'video');
 
       if (videoSender) {
-        this.peerConnection.removeTrack(videoSender);
-        this.renegotiate();
+        // Replace with null-track (silence) and send new offer so remote knows video is gone
+        videoSender.replaceTrack(null).catch(() => {});
+        this.initiateCall(this.targetSocketId);
       }
     }
 

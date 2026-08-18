@@ -745,6 +745,27 @@ body {
   background-color: var(--btn-disconnect-hover);
 }
 
+/* Call-only buttons: hidden when not in call, shown when in call */
+.call-only-btn {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+  transition: opacity 0.2s ease, transform 0.2s ease, width 0.2s ease, padding 0.2s ease, margin 0.2s ease;
+  overflow: hidden;
+}
+
+.call-only-btn.not-in-call {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+
+
 /* 4. Bottom Chat Stream */
 .chat-stream-section {
   flex: 1;
