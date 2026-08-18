@@ -92,18 +92,30 @@ class WebRTCManager {
     this.iceCandidateQueue = [];
     const pc = new RTCPeerConnection(this.rtcConfig);
 
+    console.log('[DEBUG] RTC CONFIG:', this.rtcConfig);
+    console.log('[DEBUG] ICE gathering state:', pc.iceGatheringState);
+    console.log('[DEBUG] ICE servers:', this.rtcConfig.iceServers);
+
     // 1. ICE candidate sender
     pc.onicecandidate = ({ candidate }) => {
       console.log('[DEBUG] ICE candidate event:', candidate);
+      console.log('[DEBUG] ICE gathering state:', pc.iceGatheringState);
 
       if (candidate && this.targetSocketId) {
-        console.log('[DEBUG] Enviando ICE candidate para:', this.targetSocketId);
+        console.log('[DEBUG] Enviando ICE candidate:', candidate.candidate);
 
         this.socket.emit('signal-ice-candidate', {
           targetSocketId: this.targetSocketId,
           candidate
         });
       }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log(
+        '[DEBUG] ICE gathering state changed:',
+        pc.iceGatheringState
+      );
     };
 
     // 2. Perfect Negotiation: onnegotiationneeded
