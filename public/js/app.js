@@ -1,6 +1,20 @@
-// Duo - Midnight Navy Theme with Couple Space Sidebar & Screen Source Picker
+// Duo - Midnight Navy Theme with 2-User Slot Authentication (Nao & Rayo)
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Elements - User Selection / Auth Overlay
+  const userSelectOverlay = document.getElementById('userSelectOverlay');
+  const cardSelectNao = document.getElementById('cardSelectNao');
+  const cardSelectRayo = document.getElementById('cardSelectRayo');
+  const btnSelectNao = document.getElementById('btnSelectNao');
+  const btnSelectRayo = document.getElementById('btnSelectRayo');
+  const authStatusNao = document.getElementById('authStatusNao');
+  const authStatusRayo = document.getElementById('authStatusRayo');
+  const authStatusTextNao = document.getElementById('authStatusTextNao');
+  const authStatusTextRayo = document.getElementById('authStatusTextRayo');
+  const authAvatarNao = document.getElementById('authAvatarNao');
+  const authAvatarRayo = document.getElementById('authAvatarRayo');
+  const btnLogoutUser = document.getElementById('btnLogoutUser');
+
   // Elements - Couple Sidebar
   const coupleSidebar = document.getElementById('coupleSidebar');
   const btnToggleSidebar = document.getElementById('btnToggleSidebar');
@@ -44,10 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const partnerSubText = document.getElementById('partnerSubText');
   const partnerStatusBadge = document.getElementById('partnerStatusBadge');
 
-  // Stream Viewport & Partner Audio (Strictly Muted Local Preview!)
+  // Stream Viewport & Partner Audio
   const streamViewport = document.getElementById('streamViewport');
   const activeStreamVideo = document.getElementById('activeStreamVideo');
-  activeStreamVideo.muted = true; // ALWAYS strictly muted to prevent audio feedback loop!
+  activeStreamVideo.muted = true;
   const btnFullscreenStream = document.getElementById('btnFullscreenStream');
   const partnerAudio = document.getElementById('partnerAudio');
 
@@ -87,31 +101,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastContainer = document.getElementById('toastContainer');
   const reactionsOverlay = document.getElementById('reactionsOverlay');
 
-  // Clear stale caches
-  if ('caches' in window) {
-    caches.keys().then(names => names.forEach(n => caches.delete(n)));
-  }
-
-  // Room & Profile Setup
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomId = urlParams.get('room') || 'geral';
-  const isPartner = urlParams.get('partner') === 'true';
+  // State
+  let myUserKey = null; // 'nao' or 'rayo'
+  let isInVoice = false;
+  let partnerSocketId = null;
+  let isConnectedWithPartner = false;
+  let tempAvatarDataUrl = '';
 
   let profile = {
-    username: localStorage.getItem('duo_username') || (isPartner ? 'Namorada' : 'Você'),
-    avatarUrl: localStorage.getItem('duo_avatar_img') || '',
-    avatarEmoji: isPartner ? '🌸' : '✨',
+    username: 'Você',
+    avatarUrl: '',
+    avatarEmoji: '✨',
     statusText: 'Em chamada'
   };
 
   let partnerProfile = {
-    username: isPartner ? 'Você' : 'Namorada',
+    username: 'Namorada',
     avatarUrl: '',
-    avatarEmoji: isPartner ? '✨' : '🌸',
+    avatarEmoji: '🌸',
     statusText: 'Aguardando...'
   };
-
-  let tempAvatarDataUrl = profile.avatarUrl;
 
   function setAvatarElement(element, avatarUrl, fallbackText) {
     if (!element) return;
@@ -125,35 +134,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyProfileUI() {
-    // Bottom dock
     dockName.textContent = profile.username;
-
-    // Big center circles
     localDisplayName.textContent = profile.username;
     setAvatarElement(localCircleAvatar, profile.avatarUrl, profile.avatarEmoji);
     setAvatarElement(dockAvatar, profile.avatarUrl, profile.avatarEmoji);
 
-    // Sidebar compact local card
     sidebarLocalName.textContent = profile.username;
     setAvatarElement(sidebarLocalAvatar, profile.avatarUrl, profile.avatarEmoji);
 
-    // Big center partner circle
     partnerDisplayName.textContent = partnerProfile.username;
     partnerSubText.textContent = partnerProfile.statusText;
     setAvatarElement(partnerCircleAvatar, partnerProfile.avatarUrl, partnerProfile.avatarEmoji);
 
-    // Sidebar compact partner card
     sidebarPartnerName.textContent = partnerProfile.username;
     sidebarPartnerSub.textContent = partnerProfile.statusText;
     setAvatarElement(sidebarPartnerAvatar, partnerProfile.avatarUrl, partnerProfile.avatarEmoji);
   }
-  applyProfileUI();
 
-  let isInVoice = true;
-  let partnerSocketId = null;
-  let isConnectedWithPartner = false;
+  // Pre-populate login avatar previews from localStorage
+  const savedNaoAvatar = localStorage.getItem('duo_avatar_nao') || '';
+  const savedRayoAvatar = localStorage.getItem('duo_avatar_rayo') || '';
+  setAvatarElement(authAvatarNao, savedNaoAvatar, '🐺');
+  setAvatarElement(authAvatarRayo, savedRayoAvatar, '🌸');
 
-  // Initialize Socket.io (connects to cloud URL if configured, otherwise local)
+  // Initialize Socket.io
   const cloudUrl = window.DUO_CONFIG?.SERVER_URL || '';
   const socket = cloudUrl ? io(cloudUrl) : io();
 
@@ -179,8 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (track.kind === 'video') {
         const videoStream = (stream && stream.getVideoTracks().length > 0) ? stream : new MediaStream([track]);
         activeStreamVideo.srcObject = videoStream;
-        activeStreamVideo.muted = true; // Avoid browser blocking autoplay; audio plays through partnerAudio
-        
+        activeStreamVideo.muted = true;
+
         const tryPlay = () => {
           activeStreamVideo.play().then(() => {
             console.log('[WebRTC] Remote video playing successfully');
@@ -208,23 +212,24 @@ document.addEventListener('DOMContentLoaded', () => {
         navStatusText.textContent = 'Em chamada';
         dockCallStatus.textContent = 'Em chamada';
         dockCallStatus.classList.remove('offline');
-        partnerSubText.textContent = 'Conectada';
-        partnerCircleItem.classList.remove('is-disconnected');
+        partnerSubText.textContent = 'Em chamada';
+        partnerCircleItem.classList.remove('hidden');
         partnerStatusBadge.classList.remove('offline');
         showToast('Chamada conectada! 🎧');
         sounds.playJoin();
       } else if (state === 'disconnected' || state === 'failed') {
         partnerSubText.textContent = 'Aguardando...';
-        partnerCircleItem.classList.add('is-disconnected');
+        partnerCircleItem.classList.add('hidden');
         partnerStatusBadge.classList.add('offline');
       }
     },
     onScreenShareStopped: () => {
       btnPillShare.classList.remove('active-on');
       pillShareText.textContent = 'Compartilhar';
+      sidebarLocalShareBadge.classList.remove('visible');
       activeStreamVideo.srcObject = null;
       activeStreamVideo.classList.remove('use-contain');
-      streamViewport.style.aspectRatio = '';  // Reset to CSS default (16/9)
+      streamViewport.style.aspectRatio = '';
       streamViewport.classList.remove('visible', 'stream-is-fullscreen');
       callCenterCard.classList.remove('screenshare-active');
       streamIsFullscreen = false;
@@ -235,41 +240,185 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Handle Available Slots from Server
+  socket.on('available-slots', ({ naoOccupied, rayoOccupied, activeProfiles }) => {
+    // Update Nao Card
+    if (naoOccupied && myUserKey !== 'nao') {
+      cardSelectNao.classList.add('is-occupied');
+      authStatusTextNao.textContent = 'Em uso';
+      btnSelectNao.disabled = true;
+      btnSelectNao.textContent = 'Online em outro aparelho';
+    } else {
+      cardSelectNao.classList.remove('is-occupied');
+      authStatusTextNao.textContent = 'Disponível';
+      btnSelectNao.disabled = false;
+      btnSelectNao.textContent = 'Entrar como Nao';
+    }
+
+    // Update Rayo Card
+    if (rayoOccupied && myUserKey !== 'rayo') {
+      cardSelectRayo.classList.add('is-occupied');
+      authStatusTextRayo.textContent = 'Em uso';
+      btnSelectRayo.disabled = true;
+      btnSelectRayo.textContent = 'Online em outro aparelho';
+    } else {
+      cardSelectRayo.classList.remove('is-occupied');
+      authStatusTextRayo.textContent = 'Disponível';
+      btnSelectRayo.disabled = false;
+      btnSelectRayo.textContent = 'Entrar como Rayo';
+    }
+
+    if (activeProfiles?.nao?.avatarUrl) {
+      setAvatarElement(authAvatarNao, activeProfiles.nao.avatarUrl, '🐺');
+    }
+    if (activeProfiles?.rayo?.avatarUrl) {
+      setAvatarElement(authAvatarRayo, activeProfiles.rayo.avatarUrl, '🌸');
+    }
+  });
+
+  // User Selection Actions
+  function selectUser(userKey) {
+    const savedName = localStorage.getItem(`duo_name_${userKey}`) || (userKey === 'nao' ? 'Nao' : 'Rayo');
+    const savedAvatar = localStorage.getItem(`duo_avatar_${userKey}`) || '';
+    const defaultEmoji = userKey === 'nao' ? '🐺' : '🌸';
+
+    const userProfile = {
+      username: savedName,
+      avatarUrl: savedAvatar,
+      avatarEmoji: defaultEmoji
+    };
+
+    socket.emit('select-user', { userKey, profile: userProfile });
+  }
+
+  btnSelectNao.addEventListener('click', () => selectUser('nao'));
+  btnSelectRayo.addEventListener('click', () => selectUser('rayo'));
+  cardSelectNao.addEventListener('click', (e) => {
+    if (!cardSelectNao.classList.contains('is-occupied') && e.target !== btnSelectNao) {
+      selectUser('nao');
+    }
+  });
+  cardSelectRayo.addEventListener('click', (e) => {
+    if (!cardSelectRayo.classList.contains('is-occupied') && e.target !== btnSelectRayo) {
+      selectUser('rayo');
+    }
+  });
+
+  // Selection Failed
+  socket.on('select-user-error', ({ message }) => {
+    showToast(message || 'Erro ao selecionar perfil');
+  });
+
+  // Selection Success (Login into App)
+  socket.on('select-user-success', ({ userKey, userData, partner, chatHistory }) => {
+    myUserKey = userKey;
+    const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+
+    profile = {
+      username: userData.username,
+      avatarUrl: userData.avatarUrl,
+      avatarEmoji: userData.avatarEmoji,
+      statusText: 'Em chamada'
+    };
+
+    if (partner) {
+      partnerProfile = {
+        username: partner.username || (partnerKey === 'nao' ? 'Nao' : 'Rayo'),
+        avatarUrl: partner.avatarUrl || '',
+        avatarEmoji: partner.avatarEmoji || (partnerKey === 'nao' ? '🐺' : '🌸'),
+        statusText: 'Em chamada'
+      };
+      isConnectedWithPartner = true;
+      partnerSocketId = partner.socketId;
+      partnerCircleItem.classList.remove('hidden');
+      sidebarPartnerUser.classList.remove('is-offline');
+      sidebarPartnerSub.textContent = 'Em chamada';
+    } else {
+      partnerProfile = {
+        username: partnerKey === 'nao' ? 'Nao' : 'Rayo',
+        avatarUrl: '',
+        avatarEmoji: partnerKey === 'nao' ? '🐺' : '🌸',
+        statusText: 'Aguardando...'
+      };
+      isConnectedWithPartner = false;
+      partnerSocketId = null;
+      partnerCircleItem.classList.add('hidden');
+      sidebarPartnerUser.classList.add('is-offline');
+      sidebarPartnerSub.textContent = 'Aguardando...';
+    }
+
+    applyProfileUI();
+
+    // Hide Login Overlay smoothly
+    userSelectOverlay.classList.add('hidden');
+
+    // Initialize Voice Media Call
+    initCall();
+
+    // Load Chat History
+    if (Array.isArray(chatHistory)) {
+      chatHistory.forEach(msg => appendChatMessage(msg));
+    }
+
+    showToast(`Entrou como ${profile.username}! ✨`);
+  });
+
+  // Logout / Switch User
+  btnLogoutUser.addEventListener('click', () => {
+    if (confirm('Deseja sair do seu perfil atual?')) {
+      if (isInVoice) {
+        webrtc.close();
+        vad.stop();
+        isInVoice = false;
+      }
+      socket.emit('logout-user');
+      myUserKey = null;
+      userSelectOverlay.classList.remove('hidden');
+      localCircleItem.classList.add('hidden');
+      partnerCircleItem.classList.add('hidden');
+    }
+  });
+
+  socket.on('logged-out', () => {
+    myUserKey = null;
+    userSelectOverlay.classList.remove('hidden');
+  });
+
   // Join Room & Initialize Media
   async function initCall() {
-    socket.emit('join-room', { roomId, profile });
     try {
       const stream = await webrtc.initLocalMedia(false);
       vad.start(stream);
       isInVoice = true;
+      localCircleItem.classList.remove('hidden');
+      dockCallStatus.textContent = 'Em chamada';
+      dockCallStatus.classList.remove('offline');
+      navStatusDot.classList.remove('offline');
+      navStatusText.textContent = 'Em chamada';
+      sidebarLocalSub.textContent = 'Em chamada';
     } catch (e) {
       console.warn('Microphone access warning:', e);
     }
   }
-  initCall();
 
-  // Stream video: once metadata loads, check if aspect ratio is taller than 16:9
-  // If so, switch to contain so the content isn't cropped.
+  // Fullscreen implementation
+  let streamIsFullscreen = false;
+
   activeStreamVideo.addEventListener('loadedmetadata', () => {
     const vw = activeStreamVideo.videoWidth;
     const vh = activeStreamVideo.videoHeight;
     if (vw && vh) {
       const ratio = vw / vh;
-      // Standard widescreen (16:9 = 1.77). If narrower (e.g. portrait or 4:3), use contain.
       if (ratio < 1.6) {
         activeStreamVideo.classList.add('use-contain');
       } else {
         activeStreamVideo.classList.remove('use-contain');
       }
-      // Also update the viewport's aspect-ratio CSS to match the real content
       if (!streamViewport.classList.contains('stream-is-fullscreen')) {
         streamViewport.style.aspectRatio = `${vw} / ${vh}`;
       }
     }
   });
-
-  // CSS Overlay Fullscreen — works reliably in Electron (no browser API needed)
-  let streamIsFullscreen = false;
 
   function toggleStreamFullscreen() {
     streamIsFullscreen = !streamIsFullscreen;
@@ -324,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('update-media-state', { isMuted });
   });
 
-  // Screen Share Source Picker Logic (Discord Style)
+  // Screen Share Picker Logic
   let availableSources = [];
   let selectedSource = null;
   let currentPickerTab = 'screens';
@@ -334,13 +483,14 @@ document.addEventListener('DOMContentLoaded', () => {
       webrtc.stopScreenShare();
       btnPillShare.classList.remove('active-on');
       btnPillShare.innerHTML = '<i class="ph ph-screencast"></i> <span>Compartilhar</span>';
+      sidebarLocalShareBadge.classList.remove('visible');
+      sidebarLocalSub.textContent = 'Em chamada';
       activeStreamVideo.srcObject = null;
       streamViewport.classList.remove('visible');
       callCenterCard.classList.remove('screenshare-active');
       return;
     }
 
-    // Check if Electron desktop sources API is available
     if (window.electronAPI && window.electronAPI.getDesktopSources) {
       try {
         availableSources = await window.electronAPI.getDesktopSources();
@@ -421,15 +571,14 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCloseScreenPicker.addEventListener('click', () => screenPickerModal.classList.remove('open'));
   btnCancelScreenPicker.addEventListener('click', () => screenPickerModal.classList.remove('open'));
 
-  // Confirm Screen Share from Picker
+  // Confirm Screen Share
   btnConfirmScreenShare.addEventListener('click', async () => {
     screenPickerModal.classList.remove('open');
     if (!selectedSource) return;
 
-    // Reset any previous fullscreen / aspect-ratio state
     streamIsFullscreen = false;
     streamViewport.classList.remove('stream-is-fullscreen');
-    streamViewport.style.aspectRatio = '';  // Let loadedmetadata set the correct one
+    streamViewport.style.aspectRatio = '';
     activeStreamVideo.classList.remove('use-contain');
     btnFullscreenStream.innerHTML = '<i class="ph ph-corners-out"></i>';
 
@@ -461,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarLocalShareBadge.classList.add('visible');
       sidebarLocalSub.textContent = 'Compartilhando tela';
       activeStreamVideo.srcObject = screenStream;
-      activeStreamVideo.muted = true; // STRICTLY MUTED!
+      activeStreamVideo.muted = true;
       streamViewport.classList.add('visible');
       callCenterCard.classList.add('screenshare-active');
       socket.emit('update-media-state', { isScreenSharing: true });
@@ -469,7 +618,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Pill Action: Screen Share
   btnPillShare.addEventListener('click', openScreenSharePicker);
 
   // Pill Action: Disconnect / Encerrar
@@ -485,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillDisconnect.innerHTML = '<i class="ph-bold ph-phone-call"></i> <span>Reconectar</span>';
       btnPillDisconnect.classList.remove('btn-pill-disconnect');
       btnPillDisconnect.classList.add('btn-pill-connect');
-      localCircleItem.classList.add('hidden'); // Hide circle when disconnected (Discord style)
+      localCircleItem.classList.add('hidden');
       sidebarLocalUser.classList.remove('is-speaking');
       sidebarLocalSub.textContent = 'Desconectado';
       sidebarLocalMutedBadge.classList.remove('visible');
@@ -500,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillDisconnect.classList.remove('btn-pill-connect');
       btnPillDisconnect.classList.add('btn-pill-disconnect');
       dockCallStatus.classList.remove('offline');
-      localCircleItem.classList.remove('hidden'); // Show circle when connected
+      localCircleItem.classList.remove('hidden');
       sidebarLocalSub.textContent = 'Em chamada';
       sounds.playJoin();
     }
@@ -512,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Live Shared Couple Notes Sync
-  const savedNotes = localStorage.getItem(`duo_notes_${roomId}`);
+  const savedNotes = localStorage.getItem('duo_notes_shared');
   if (savedNotes) {
     sidebarNotes.value = savedNotes;
   }
@@ -520,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let notesDebounce = null;
   sidebarNotes.addEventListener('input', () => {
     const content = sidebarNotes.value;
-    localStorage.setItem(`duo_notes_${roomId}`, content);
+    localStorage.setItem('duo_notes_shared', content);
     clearTimeout(notesDebounce);
     notesDebounce = setTimeout(() => {
       socket.emit('sync-notes', { content });
@@ -529,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('notes-synced', ({ content }) => {
     sidebarNotes.value = content;
-    localStorage.setItem(`duo_notes_${roomId}`, content);
+    localStorage.setItem('duo_notes_shared', content);
   });
 
   // Profile Customization Modal Logic
@@ -580,8 +728,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     profile.avatarUrl = tempAvatarDataUrl;
 
-    localStorage.setItem('duo_username', profile.username);
-    localStorage.setItem('duo_avatar_img', profile.avatarUrl);
+    if (myUserKey) {
+      localStorage.setItem(`duo_name_${myUserKey}`, profile.username);
+      localStorage.setItem(`duo_avatar_${myUserKey}`, profile.avatarUrl);
+    }
 
     applyProfileUI();
     socket.emit('update-profile', profile);
@@ -589,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Perfil atualizado com sucesso! ✨');
   });
 
-  // Socket Events
+  // Socket Peer Events
   socket.on('peer-joined', ({ peer, initiator }) => {
     partnerSocketId = peer.socketId;
     isConnectedWithPartner = true;
@@ -613,9 +763,8 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSocketId = null;
     isConnectedWithPartner = false;
     partnerSubText.textContent = 'Aguardando...';
-    partnerCircleItem.classList.add('hidden'); // Hide partner circle when disconnected (Discord style)
+    partnerCircleItem.classList.add('hidden');
     partnerStatusBadge.classList.add('offline');
-    // Sidebar partner card — offline state
     sidebarPartnerUser.classList.add('is-offline');
     sidebarPartnerUser.classList.remove('is-speaking');
     sidebarPartnerSub.textContent = 'Aguardando...';
@@ -667,7 +816,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       partnerCircleItem.classList.remove('is-speaking');
       sidebarPartnerUser.classList.remove('is-speaking');
-      // Restore correct sub label
       if (!sidebarPartnerUser.classList.contains('is-offline')) {
         sidebarPartnerSub.textContent = sidebarPartnerShareBadge.classList.contains('visible')
           ? 'Compartilhando tela'
@@ -677,12 +825,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function updatePartnerData(peer) {
-    partnerProfile.username = peer.username || partnerProfile.username;
+    const partnerKey = myUserKey === 'nao' ? 'rayo' : 'nao';
+    partnerProfile.username = peer.username || (partnerKey === 'nao' ? 'Nao' : 'Rayo');
     partnerProfile.avatarUrl = peer.avatarUrl || '';
     partnerProfile.statusText = 'Em chamada';
-    partnerCircleItem.classList.remove('hidden'); // Show partner circle when connected
+    partnerCircleItem.classList.remove('hidden');
     partnerStatusBadge.classList.remove('offline');
-    // Sidebar partner card — online state
     sidebarPartnerUser.classList.remove('is-offline', 'is-speaking');
     sidebarPartnerSub.textContent = 'Em chamada';
     applyProfileUI();
@@ -748,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('new-message', (messageData) => {
     appendChatMessage(messageData);
-    if (messageData.senderId !== socket.id) {
+    if (messageData.senderUserKey !== myUserKey) {
       sounds.playMessage();
     }
   });
@@ -761,19 +909,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function appendChatMessage(msg) {
     const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + msg.text);
-    if (renderedMessageIds.has(msgKey)) return; // Prevent duplicate messages on reconnect!
+    if (renderedMessageIds.has(msgKey)) return;
     renderedMessageIds.add(msgKey);
 
     const bubbleRow = document.createElement('div');
     bubbleRow.className = 'chat-bubble-row';
 
-    const isMine = (msg.senderId === socket.id) || (msg.senderName === profile.username);
+    const isMine = (msg.senderUserKey === myUserKey) || (msg.senderId === socket.id) || (msg.senderName === profile.username);
     const authorColor = isMine ? '#00e676' : '#ff79c6';
     const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     bubbleRow.innerHTML = `
       <div class="chat-bubble-avatar" style="${msg.senderAvatar ? `background-image: url('${msg.senderAvatar}');` : ''}">
-        ${msg.senderAvatar ? '' : '💖'}
+        ${msg.senderAvatar ? '' : (isMine ? profile.avatarEmoji : partnerProfile.avatarEmoji)}
       </div>
       <div class="chat-bubble-content">
         <div class="chat-bubble-header">

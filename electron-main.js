@@ -8,9 +8,23 @@ let mainWindow = null;
 let serverInstance = null;
 const PORT = 3000;
 
-// Track active users and chat history in-memory
-const users = new Map();
-const roomChatHistory = new Map();
+const activeSlots = {
+  nao: null,
+  rayo: null
+};
+
+const roomChatHistory = [];
+
+function broadcastAvailableSlots(io) {
+  io.emit('available-slots', {
+    naoOccupied: activeSlots.nao !== null,
+    rayoOccupied: activeSlots.rayo !== null,
+    activeProfiles: {
+      nao: activeSlots.nao ? { username: activeSlots.nao.username, avatarUrl: activeSlots.nao.avatarUrl } : null,
+      rayo: activeSlots.rayo ? { username: activeSlots.rayo.username, avatarUrl: activeSlots.rayo.avatarUrl } : null
+    }
+  });
+}
 
 // Setup Internal Backend Server
 function startInternalServer() {
@@ -23,7 +37,7 @@ function startInternalServer() {
   expressApp.use(express.static(path.join(__dirname, 'public')));
 
   expressApp.get('/api/info', (req, res) => {
-    res.json({ name: 'Duo Call Desktop', status: 'online' });
+    res.json({ name: 'Duo Desktop', status: 'online' });
   });
 
   expressApp.get('*', (req, res) => {
@@ -31,62 +45,111 @@ function startInternalServer() {
   });
 
   io.on('connection', (socket) => {
-    socket.on('join-room', ({ roomId, profile }) => {
-      const room = roomId || 'our-space';
-      socket.join(room);
-      socket.roomId = room;
+    socket.emit('available-slots', {
+      naoOccupied: activeSlots.nao !== null,
+      rayoOccupied: activeSlots.rayo !== null,
+      activeProfiles: {
+        nao: activeSlots.nao ? { username: activeSlots.nao.username, avatarUrl: activeSlots.nao.avatarUrl } : null,
+        rayo: activeSlots.rayo ? { username: activeSlots.rayo.username, avatarUrl: activeSlots.rayo.avatarUrl } : null
+      }
+    });
+
+    socket.on('select-user', ({ userKey, profile }) => {
+      if (userKey !== 'nao' && userKey !== 'rayo') {
+        return socket.emit('select-user-error', { message: 'Usuário inválido.' });
+      }
+
+      if (activeSlots[userKey] !== null && activeSlots[userKey].socketId !== socket.id) {
+        const displayName = userKey === 'nao' ? 'Nao' : 'Rayo';
+        return socket.emit('select-user-error', {
+          message: `O perfil "${displayName}" já está logado em outro navegador ou aparelho.`
+        });
+      }
+
+      socket.userKey = userKey;
+      const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+      const defaultName = userKey === 'nao' ? 'Nao' : 'Rayo';
+      const defaultEmoji = userKey === 'nao' ? '🐺' : '🌸';
 
       const userData = {
         socketId: socket.id,
-        roomId: room,
-        username: profile?.username || 'Partner',
+        userKey: userKey,
+        username: profile?.username || defaultName,
         avatarUrl: profile?.avatarUrl || '',
-        avatarEmoji: profile?.avatarEmoji || '💖',
+        avatarEmoji: profile?.avatarEmoji || defaultEmoji,
         isMuted: false,
-        isDeafened: false,
-        isVideoOn: false,
         isScreenSharing: false,
-        statusText: profile?.statusText || 'Conectado'
+        statusText: 'Em chamada'
       };
 
-      users.set(socket.id, userData);
+      activeSlots[userKey] = userData;
 
-      const history = roomChatHistory.get(room) || [];
-      socket.emit('chat-history', history);
-
-      socket.to(room).emit('peer-joined', {
-        peer: userData,
-        initiator: true
+      socket.emit('select-user-success', {
+        userKey,
+        userData,
+        partner: activeSlots[partnerKey],
+        chatHistory: roomChatHistory
       });
 
-      const roomSockets = io.sockets.adapter.rooms.get(room);
-      if (roomSockets) {
-        for (const id of roomSockets) {
-          if (id !== socket.id && users.has(id)) {
-            socket.emit('peer-existing', { peer: users.get(id) });
-            break;
-          }
+      broadcastAvailableSlots(io);
+
+      if (activeSlots[partnerKey]) {
+        const partnerSocketId = activeSlots[partnerKey].socketId;
+        io.to(partnerSocketId).emit('peer-joined', {
+          peer: userData,
+          initiator: true
+        });
+        socket.emit('peer-existing', {
+          peer: activeSlots[partnerKey]
+        });
+      }
+    });
+
+    socket.on('logout-user', () => {
+      if (socket.userKey && activeSlots[socket.userKey]?.socketId === socket.id) {
+        const userKey = socket.userKey;
+        const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+        activeSlots[userKey] = null;
+        socket.userKey = null;
+
+        if (activeSlots[partnerKey]) {
+          io.to(activeSlots[partnerKey].socketId).emit('peer-left', {
+            userKey,
+            username: userKey === 'nao' ? 'Nao' : 'Rayo'
+          });
         }
+
+        broadcastAvailableSlots(io);
+        socket.emit('logged-out');
       }
     });
 
     socket.on('update-profile', (updatedProfile) => {
-      const user = users.get(socket.id);
-      if (!user) return;
+      if (!socket.userKey || !activeSlots[socket.userKey]) return;
+      const user = activeSlots[socket.userKey];
       Object.assign(user, updatedProfile);
-      users.set(socket.id, user);
-      socket.to(user.roomId).emit('peer-profile-updated', user);
+      activeSlots[socket.userKey] = user;
+
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-profile-updated', user);
+      }
+      broadcastAvailableSlots(io);
     });
 
     socket.on('update-media-state', (mediaState) => {
-      const user = users.get(socket.id);
-      if (!user) return;
+      if (!socket.userKey || !activeSlots[socket.userKey]) return;
+      const user = activeSlots[socket.userKey];
       Object.assign(user, mediaState);
-      users.set(socket.id, user);
-      socket.to(user.roomId).emit('peer-media-state-updated', {
-        socketId: socket.id,
-        ...mediaState
-      });
+
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-media-state-updated', {
+          socketId: socket.id,
+          userKey: socket.userKey,
+          ...mediaState
+        });
+      }
     });
 
     // WebRTC Signaling
@@ -108,64 +171,69 @@ function startInternalServer() {
 
     // Chat System
     socket.on('send-message', ({ text, senderName, senderAvatar, type = 'text', timestamp }) => {
-      const user = users.get(socket.id);
-      const room = user?.roomId || socket.roomId || 'our-space';
+      if (!socket.userKey) return;
+      const user = activeSlots[socket.userKey];
 
       const messageData = {
         id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         senderId: socket.id,
-        senderName: senderName || user?.username || 'Partner',
+        senderUserKey: socket.userKey,
+        senderName: senderName || user?.username || (socket.userKey === 'nao' ? 'Nao' : 'Rayo'),
         senderAvatar: senderAvatar || user?.avatarUrl || '',
         text: text,
         type: type,
         timestamp: timestamp || new Date().toISOString()
       };
 
-      if (!roomChatHistory.has(room)) {
-        roomChatHistory.set(room, []);
-      }
-      const history = roomChatHistory.get(room);
-      history.push(messageData);
-      if (history.length > 100) history.shift();
+      roomChatHistory.push(messageData);
+      if (roomChatHistory.length > 100) roomChatHistory.shift();
 
-      io.to(room).emit('new-message', messageData);
-    });
-
-    // Live Shared Notes / Watchlist Sync
-    socket.on('sync-notes', ({ content }) => {
-      const user = users.get(socket.id);
-      const room = user?.roomId || socket.roomId || 'our-space';
-      socket.to(room).emit('notes-synced', { content });
+      io.emit('new-message', messageData);
     });
 
     socket.on('send-reaction', ({ reaction, sound }) => {
-      const user = users.get(socket.id);
-      const room = user?.roomId || socket.roomId || 'our-space';
-      socket.to(room).emit('peer-reaction', {
-        senderId: socket.id,
-        senderName: user?.username || 'Partner',
-        reaction,
-        sound
-      });
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-reaction', {
+          senderId: socket.id,
+          reaction,
+          sound
+        });
+      }
+    });
+
+    socket.on('sync-notes', ({ content }) => {
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('notes-synced', { content });
+      }
     });
 
     socket.on('speaking-state', ({ isSpeaking }) => {
-      const user = users.get(socket.id);
-      const room = user?.roomId || socket.roomId || 'our-space';
-      socket.to(room).emit('peer-speaking-state', {
-        socketId: socket.id,
-        isSpeaking
-      });
+      const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-speaking-state', {
+          socketId: socket.id,
+          userKey: socket.userKey,
+          isSpeaking
+        });
+      }
     });
 
     socket.on('disconnect', () => {
-      const user = users.get(socket.id);
-      if (user) {
-        socket.to(user.roomId).emit('peer-left', {
-          socketId: socket.id,
-          username: user.username
-        });
-        users.delete(socket.id);
+      if (socket.userKey && activeSlots[socket.userKey]?.socketId === socket.id) {
+        const userKey = socket.userKey;
+        const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+        activeSlots[userKey] = null;
+
+        if (activeSlots[partnerKey]) {
+          io.to(activeSlots[partnerKey].socketId).emit('peer-left', {
+            userKey,
+            username: userKey === 'nao' ? 'Nao' : 'Rayo'
+          });
+        }
+
+        broadcastAvailableSlots(io);
       }
     });
   });

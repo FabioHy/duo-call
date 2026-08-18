@@ -18,9 +18,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/info', (req, res) => {
   res.json({
-    name: 'Duo Call',
+    name: 'Duo Space',
     status: 'online',
-    activeRooms: io.sockets.adapter.rooms.size
+    slots: {
+      nao: activeSlots.nao !== null,
+      rayo: activeSlots.rayo !== null
+    }
   });
 });
 
@@ -28,70 +31,147 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const users = new Map();
-const roomChatHistory = new Map();
+// Dedicated 2-User Slot Management (Nao & Rayo)
+const activeSlots = {
+  nao: null, // { socketId, userKey, username, avatarUrl, avatarEmoji, isMuted, isScreenSharing, ... }
+  rayo: null
+};
+
+const roomChatHistory = [];
+
+function broadcastAvailableSlots() {
+  io.emit('available-slots', {
+    naoOccupied: activeSlots.nao !== null,
+    rayoOccupied: activeSlots.rayo !== null,
+    activeProfiles: {
+      nao: activeSlots.nao ? { username: activeSlots.nao.username, avatarUrl: activeSlots.nao.avatarUrl } : null,
+      rayo: activeSlots.rayo ? { username: activeSlots.rayo.username, avatarUrl: activeSlots.rayo.avatarUrl } : null
+    }
+  });
+}
 
 io.on('connection', (socket) => {
   console.log(`[Socket Connected] ID: ${socket.id}`);
 
-  socket.on('join-room', ({ roomId, profile }) => {
-    const room = roomId || 'our-space';
-    socket.join(room);
-    socket.roomId = room;
-
-    const userData = {
-      socketId: socket.id,
-      roomId: room,
-      username: profile?.username || 'Partner',
-      avatar: profile?.avatar || '💖',
-      isMuted: false,
-      isDeafened: false,
-      isVideoOn: false,
-      isScreenSharing: false,
-      statusText: profile?.statusText || '#0001'
-    };
-
-    users.set(socket.id, userData);
-
-    // Send chat history immediately
-    const history = roomChatHistory.get(room) || [];
-    socket.emit('chat-history', history);
-
-    socket.to(room).emit('peer-joined', {
-      peer: userData,
-      initiator: true
-    });
-
-    const roomSockets = io.sockets.adapter.rooms.get(room);
-    if (roomSockets) {
-      for (const id of roomSockets) {
-        if (id !== socket.id && users.has(id)) {
-          socket.emit('peer-existing', { peer: users.get(id) });
-          break;
-        }
-      }
+  // Send current slot availability immediately upon connecting
+  socket.emit('available-slots', {
+    naoOccupied: activeSlots.nao !== null,
+    rayoOccupied: activeSlots.rayo !== null,
+    activeProfiles: {
+      nao: activeSlots.nao ? { username: activeSlots.nao.username, avatarUrl: activeSlots.nao.avatarUrl } : null,
+      rayo: activeSlots.rayo ? { username: activeSlots.rayo.username, avatarUrl: activeSlots.rayo.avatarUrl } : null
     }
   });
 
-  socket.on('update-profile', (updatedProfile) => {
-    const user = users.get(socket.id);
-    if (!user) return;
-    Object.assign(user, updatedProfile);
-    users.set(socket.id, user);
-    socket.to(user.roomId).emit('peer-profile-updated', user);
-  });
+  // User Selection (Login as Nao or Rayo)
+  socket.on('select-user', ({ userKey, profile }) => {
+    if (userKey !== 'nao' && userKey !== 'rayo') {
+      return socket.emit('select-user-error', { message: 'Usuário inválido.' });
+    }
 
-  socket.on('update-media-state', (mediaState) => {
-    const user = users.get(socket.id);
-    if (!user) return;
-    Object.assign(user, mediaState);
-    users.set(socket.id, user);
-    socket.to(user.roomId).emit('peer-media-state-updated', {
+    // Check if slot is already occupied by an active socket
+    if (activeSlots[userKey] !== null && activeSlots[userKey].socketId !== socket.id) {
+      const displayName = userKey === 'nao' ? 'Nao' : 'Rayo';
+      return socket.emit('select-user-error', {
+        message: `O perfil "${displayName}" já está logado em outro navegador ou aparelho.`
+      });
+    }
+
+    // Assign slot
+    socket.userKey = userKey;
+    const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+
+    const defaultName = userKey === 'nao' ? 'Nao' : 'Rayo';
+    const defaultEmoji = userKey === 'nao' ? '🐺' : '🌸';
+
+    const userData = {
       socketId: socket.id,
-      ...mediaState
+      userKey: userKey,
+      username: profile?.username || defaultName,
+      avatarUrl: profile?.avatarUrl || '',
+      avatarEmoji: profile?.avatarEmoji || defaultEmoji,
+      isMuted: false,
+      isScreenSharing: false,
+      statusText: 'Em chamada'
+    };
+
+    activeSlots[userKey] = userData;
+
+    // Send success to logged-in user
+    socket.emit('select-user-success', {
+      userKey,
+      userData,
+      partner: activeSlots[partnerKey],
+      chatHistory: roomChatHistory
     });
+
+    // Notify all connected clients about updated slot availability
+    broadcastAvailableSlots();
+
+    // If partner is already connected, link them together in WebRTC
+    if (activeSlots[partnerKey]) {
+      const partnerSocketId = activeSlots[partnerKey].socketId;
+      io.to(partnerSocketId).emit('peer-joined', {
+        peer: userData,
+        initiator: true
+      });
+      socket.emit('peer-existing', {
+        peer: activeSlots[partnerKey]
+      });
+    }
   });
 
+  // User Voluntary Logout / Switch User
+  socket.on('logout-user', () => {
+    if (socket.userKey && activeSlots[socket.userKey]?.socketId === socket.id) {
+      const userKey = socket.userKey;
+      const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+      activeSlots[userKey] = null;
+      socket.userKey = null;
+
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-left', {
+          userKey,
+          username: userKey === 'nao' ? 'Nao' : 'Rayo'
+        });
+      }
+
+      broadcastAvailableSlots();
+      socket.emit('logged-out');
+    }
+  });
+
+  // Update Profile (Name, photo)
+  socket.on('update-profile', (updatedProfile) => {
+    if (!socket.userKey || !activeSlots[socket.userKey]) return;
+    const user = activeSlots[socket.userKey];
+    Object.assign(user, updatedProfile);
+    activeSlots[socket.userKey] = user;
+
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('peer-profile-updated', user);
+    }
+    broadcastAvailableSlots();
+  });
+
+  // Media State (Mute, Screen Share)
+  socket.on('update-media-state', (mediaState) => {
+    if (!socket.userKey || !activeSlots[socket.userKey]) return;
+    const user = activeSlots[socket.userKey];
+    Object.assign(user, mediaState);
+
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('peer-media-state-updated', {
+        socketId: socket.id,
+        userKey: socket.userKey,
+        ...mediaState
+      });
+    }
+  });
+
+  // WebRTC Signaling
   socket.on('signal-offer', ({ targetSocketId, sdp }) => {
     socket.to(targetSocketId).emit('signal-offer', { senderSocketId: socket.id, sdp });
   });
@@ -108,93 +188,76 @@ io.on('connection', (socket) => {
     socket.to(targetSocketId).emit('signal-renegotiate', { senderSocketId: socket.id });
   });
 
-  socket.on('ring-partner', () => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('incoming-ring', {
-      caller: user || { username: 'Partner', avatar: '💖' }
-    });
-  });
-
-  socket.on('cancel-ring', () => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('ring-cancelled', { callerId: socket.id });
-  });
-
-  socket.on('accept-ring', () => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('ring-accepted', { acceptorId: socket.id });
-  });
-
-  socket.on('reject-ring', () => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('ring-rejected', { rejectorId: socket.id });
-  });
-
+  // Chat System
   socket.on('send-message', ({ text, senderName, senderAvatar, type = 'text', timestamp }) => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
+    if (!socket.userKey) return;
+    const user = activeSlots[socket.userKey];
 
     const messageData = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
       senderId: socket.id,
-      senderName: senderName || user?.username || 'Partner',
-      senderAvatar: senderAvatar || user?.avatar || '💖',
+      senderUserKey: socket.userKey,
+      senderName: senderName || user?.username || (socket.userKey === 'nao' ? 'Nao' : 'Rayo'),
+      senderAvatar: senderAvatar || user?.avatarUrl || '',
       text: text,
       type: type,
       timestamp: timestamp || new Date().toISOString()
     };
 
-    if (!roomChatHistory.has(room)) {
-      roomChatHistory.set(room, []);
-    }
-    const history = roomChatHistory.get(room);
-    history.push(messageData);
-    if (history.length > 100) history.shift();
+    roomChatHistory.push(messageData);
+    if (roomChatHistory.length > 100) roomChatHistory.shift();
 
-    io.to(room).emit('new-message', messageData);
+    io.emit('new-message', messageData);
   });
 
+  // Heart Reactions
   socket.on('send-reaction', ({ reaction, sound }) => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('peer-reaction', {
-      senderId: socket.id,
-      senderName: user?.username || 'Partner',
-      reaction,
-      sound
-    });
-  });
-
-  socket.on('sync-notes', ({ content }) => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('notes-synced', {
-      senderName: user?.username || 'Partner',
-      content
-    });
-  });
-
-  socket.on('speaking-state', ({ isSpeaking }) => {
-    const user = users.get(socket.id);
-    const room = user?.roomId || socket.roomId || 'our-space';
-    socket.to(room).emit('peer-speaking-state', {
-      socketId: socket.id,
-      isSpeaking
-    });
-  });
-
-  socket.on('disconnect', () => {
-    const user = users.get(socket.id);
-    if (user) {
-      socket.to(user.roomId).emit('peer-left', {
-        socketId: socket.id,
-        username: user.username
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('peer-reaction', {
+        senderId: socket.id,
+        reaction,
+        sound
       });
-      users.delete(socket.id);
+    }
+  });
+
+  // Shared Notes
+  socket.on('sync-notes', ({ content }) => {
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('notes-synced', { content });
+    }
+  });
+
+  // Speaking State
+  socket.on('speaking-state', ({ isSpeaking }) => {
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('peer-speaking-state', {
+        socketId: socket.id,
+        userKey: socket.userKey,
+        isSpeaking
+      });
+    }
+  });
+
+  // Disconnect Handling (Immediately frees the slot and logs out user)
+  socket.on('disconnect', () => {
+    console.log(`[Socket Disconnected] ID: ${socket.id}`);
+    if (socket.userKey && activeSlots[socket.userKey]?.socketId === socket.id) {
+      const userKey = socket.userKey;
+      const partnerKey = userKey === 'nao' ? 'rayo' : 'nao';
+      activeSlots[userKey] = null;
+
+      if (activeSlots[partnerKey]) {
+        io.to(activeSlots[partnerKey].socketId).emit('peer-left', {
+          userKey,
+          username: userKey === 'nao' ? 'Nao' : 'Rayo'
+        });
+      }
+
+      broadcastAvailableSlots();
     }
   });
 });

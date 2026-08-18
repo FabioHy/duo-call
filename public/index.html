@@ -100,9 +100,14 @@
             <span class="dock-user-sub" id="dockCallStatus">Em chamada</span>
           </div>
         </div>
-        <button class="dock-settings-btn" id="btnSettings" title="Editar Perfil">
-          <i class="ph ph-gear"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 2px;">
+          <button class="dock-settings-btn" id="btnSettings" title="Editar Perfil">
+            <i class="ph ph-gear"></i>
+          </button>
+          <button class="dock-settings-btn" id="btnLogoutUser" title="Trocar de Usuário / Sair">
+            <i class="ph ph-sign-out"></i>
+          </button>
+        </div>
       </div>
     </aside>
 
@@ -273,7 +278,7 @@
 
         <div class="profile-form-group">
           <label class="profile-label">Seu Nome de Exibição</label>
-          <input type="text" class="profile-text-input" id="inputProfileName" placeholder="Ex: Fabio">
+          <input type="text" class="profile-text-input" id="inputProfileName" placeholder="Ex: Nao">
         </div>
 
         <div class="profile-form-group">
@@ -284,6 +289,47 @@
         <div class="profile-modal-actions">
           <button class="btn-modal-cancel" id="btnCancelProfile">Cancelar</button>
           <button class="btn-modal-save" id="btnSaveProfile">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. User Selection / Login Screen (Who are you?) -->
+    <div class="auth-overlay" id="userSelectOverlay">
+      <div class="auth-modal-card">
+        <div class="auth-header">
+          <div class="auth-icon-wrap">
+            <i class="ph-fill ph-heart"></i>
+          </div>
+          <h2 class="auth-title">Quem é você?</h2>
+          <p class="auth-subtitle">Selecione seu perfil para entrar no nosso cantinho ✨</p>
+        </div>
+
+        <div class="auth-users-grid">
+          <!-- Option 1: Nao -->
+          <div class="auth-user-card" id="cardSelectNao" data-user="nao">
+            <div class="auth-user-avatar" id="authAvatarNao">🐺</div>
+            <div class="auth-user-name">Nao</div>
+            <div class="auth-user-status" id="authStatusNao">
+              <span class="auth-dot available"></span>
+              <span id="authStatusTextNao">Disponível</span>
+            </div>
+            <button class="btn-auth-select" id="btnSelectNao">Entrar como Nao</button>
+          </div>
+
+          <!-- Option 2: Rayo -->
+          <div class="auth-user-card" id="cardSelectRayo" data-user="rayo">
+            <div class="auth-user-avatar" id="authAvatarRayo">🌸</div>
+            <div class="auth-user-name">Rayo</div>
+            <div class="auth-user-status" id="authStatusRayo">
+              <span class="auth-dot available"></span>
+              <span id="authStatusTextRayo">Disponível</span>
+            </div>
+            <button class="btn-auth-select" id="btnSelectRayo">Entrar como Rayo</button>
+          </div>
+        </div>
+
+        <div class="auth-footer-notice" id="authErrorMsg">
+          App privado exclusivo para Nao e Rayo 💖
         </div>
       </div>
     </div>
