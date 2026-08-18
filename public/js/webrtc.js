@@ -94,7 +94,11 @@ class WebRTCManager {
 
     // 1. ICE candidate sender
     pc.onicecandidate = ({ candidate }) => {
+      console.log('[DEBUG] ICE candidate event:', candidate);
+
       if (candidate && this.targetSocketId) {
+        console.log('[DEBUG] Enviando ICE candidate para:', this.targetSocketId);
+
         this.socket.emit('signal-ice-candidate', {
           targetSocketId: this.targetSocketId,
           candidate
