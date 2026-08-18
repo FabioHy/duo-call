@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeStreamVideo.srcObject = videoStream;
         activeStreamVideo.muted = true;
 
-        const tryPlay = () => {
+        const tryPlayVideo = () => {
           activeStreamVideo.play().then(() => {
             console.log('[WebRTC] Remote video playing successfully');
           }).catch(e => {
@@ -199,15 +199,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         track.onunmute = () => {
           console.log('[WebRTC] Remote video track unmuted, playing stream');
-          tryPlay();
+          tryPlayVideo();
         };
 
-        tryPlay();
+        track.onended = () => {
+          console.log('[WebRTC] Remote video track ended');
+          activeStreamVideo.srcObject = null;
+          streamViewport.classList.remove('visible', 'stream-is-fullscreen');
+          callCenterCard.classList.remove('screenshare-active');
+        };
+
+        tryPlayVideo();
         streamViewport.classList.add('visible');
         callCenterCard.classList.add('screenshare-active');
       } else if (track.kind === 'audio') {
-        partnerAudio.srcObject = stream;
-        partnerAudio.play().catch(e => console.log('Remote audio error:', e));
+        console.log('[WebRTC] Remote audio track received');
+        const audioStream = (stream && stream.getAudioTracks().length > 0) ? stream : new MediaStream([track]);
+        partnerAudio.srcObject = audioStream;
+        partnerAudio.play().then(() => {
+          console.log('[WebRTC] Remote audio playing smoothly');
+        }).catch(e => {
+          console.warn('[WebRTC] Remote audio autoplay blocked, waiting for click:', e);
+          const resumeAudio = () => {
+            partnerAudio.play().then(() => {
+              window.removeEventListener('click', resumeAudio);
+            }).catch(() => {});
+          };
+          window.addEventListener('click', resumeAudio);
+        });
       }
     },
     onConnectionStateChange: (state) => {
