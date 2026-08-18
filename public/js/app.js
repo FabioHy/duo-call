@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const partnerCircleItem = document.getElementById('partnerCircleItem');
   const partnerCircleAvatar = document.getElementById('partnerCircleAvatar');
   const partnerDisplayName = document.getElementById('partnerDisplayName');
-  const partnerSubText = document.getElementById('partnerSubText');
   const partnerStatusBadge = document.getElementById('partnerStatusBadge');
 
   // Stream Viewport & Partner Audio
@@ -143,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setAvatarElement(sidebarLocalAvatar, profile.avatarUrl, profile.avatarEmoji);
 
     partnerDisplayName.textContent = partnerProfile.username;
-    partnerSubText.textContent = partnerProfile.statusText;
     setAvatarElement(partnerCircleAvatar, partnerProfile.avatarUrl, partnerProfile.avatarEmoji);
 
     sidebarPartnerName.textContent = partnerProfile.username;
@@ -212,13 +210,11 @@ document.addEventListener('DOMContentLoaded', () => {
         navStatusText.textContent = 'Em chamada';
         dockCallStatus.textContent = 'Em chamada';
         dockCallStatus.classList.remove('offline');
-        partnerSubText.textContent = 'Em chamada';
         partnerCircleItem.classList.remove('hidden');
         partnerStatusBadge.classList.remove('offline');
         showToast('Chamada conectada! 🎧');
         sounds.playJoin();
       } else if (state === 'disconnected' || state === 'failed') {
-        partnerSubText.textContent = 'Aguardando...';
         partnerCircleItem.classList.add('hidden');
         partnerStatusBadge.classList.add('offline');
       }
@@ -762,7 +758,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`${username || 'Namorada'} saiu da chamada`);
     partnerSocketId = null;
     isConnectedWithPartner = false;
-    partnerSubText.textContent = 'Aguardando...';
     partnerCircleItem.classList.add('hidden');
     partnerStatusBadge.classList.add('offline');
     sidebarPartnerUser.classList.add('is-offline');
