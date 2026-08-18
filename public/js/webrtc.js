@@ -17,7 +17,6 @@ class WebRTCManager {
 
     // Queue for ICE candidates that arrive before setRemoteDescription
     this.iceCandidateQueue = [];
-    this.isSettingRemoteDescription = false;
 
     // Comprehensive public STUN servers for cross-network connectivity
     this.rtcConfig = {
@@ -61,14 +60,20 @@ class WebRTCManager {
     }
   }
 
-  // Create or retrieve existing RTCPeerConnection
-  getOrCreatePeerConnection(targetSocketId) {
+  // ─── Core: create a fresh RTCPeerConnection ───────────────────────────────
+  _createPeerConnection(targetSocketId) {
+    // Tear down any existing connection first
     if (this.peerConnection) {
-      this.targetSocketId = targetSocketId;
-      return this.peerConnection;
+      this.peerConnection.ontrack = null;
+      this.peerConnection.onicecandidate = null;
+      this.peerConnection.onconnectionstatechange = null;
+      this.peerConnection.oniceconnectionstatechange = null;
+      this.peerConnection.close();
+      this.peerConnection = null;
     }
-
+    this.iceCandidateQueue = [];
     this.targetSocketId = targetSocketId;
+
     const pc = new RTCPeerConnection(this.rtcConfig);
 
     pc.onicecandidate = (event) => {
@@ -81,8 +86,11 @@ class WebRTCManager {
     };
 
     pc.ontrack = (event) => {
-      console.log('[WebRTC] Received remote track:', event.track.kind, 'ReadyState:', event.track.readyState);
-      const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+      console.log('[WebRTC] ontrack fired:', event.track.kind, 'state:', event.track.readyState);
+      const stream = (event.streams && event.streams[0])
+        ? event.streams[0]
+        : new MediaStream([event.track]);
+
       if (this.callbacks.onRemoteStream) {
         this.callbacks.onRemoteStream(stream, event.track);
       }
@@ -96,21 +104,41 @@ class WebRTCManager {
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE Connection State:', pc.iceConnectionState);
+      console.log('[WebRTC] ICE State:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'failed') {
         pc.restartIce();
       }
     };
 
-    // Add local tracks if available
+    this.peerConnection = pc;
+    return pc;
+  }
+
+  // ─── Used when we ALREADY have a peer connection and just need it ─────────
+  getOrCreatePeerConnection(targetSocketId) {
+    if (this.peerConnection) {
+      this.targetSocketId = targetSocketId;
+      return this.peerConnection;
+    }
+    return this._createPeerConnection(targetSocketId);
+  }
+
+  // ─── Add the appropriate local tracks to pc ───────────────────────────────
+  _addLocalTracksToPc(pc, includeScreenVideo = false) {
+    // Always add microphone audio
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
         pc.addTrack(track, this.localStream);
       });
     }
 
-    this.peerConnection = pc;
-    return pc;
+    // Optionally add screen video
+    if (includeScreenVideo && this.screenStream) {
+      const videoTrack = this.screenStream.getVideoTracks()[0];
+      if (videoTrack) {
+        pc.addTrack(videoTrack, this.screenStream);
+      }
+    }
   }
 
   // Drain queued ICE candidates once remote description is set
@@ -150,7 +178,20 @@ class WebRTCManager {
   // Handle incoming Offer
   async handleOffer(senderSocketId, sdp) {
     this.targetSocketId = senderSocketId;
-    const pc = this.getOrCreatePeerConnection(senderSocketId);
+
+    // Check if this looks like a renegotiation (screen share started/stopped)
+    // If so, rebuild the peer connection so we get fresh ontrack events
+    const isRenegotiation = !!this.peerConnection;
+
+    let pc;
+    if (isRenegotiation) {
+      console.log('[WebRTC] Renegotiation offer received — rebuilding peer connection for fresh ontrack');
+      pc = this._createPeerConnection(senderSocketId);
+      this._addLocalTracksToPc(pc, this.isScreenSharing);
+    } else {
+      pc = this.getOrCreatePeerConnection(senderSocketId);
+      this._addLocalTracksToPc(pc, false);
+    }
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
@@ -206,12 +247,6 @@ class WebRTCManager {
     this.socket.on('signal-ice-candidate', async ({ candidate }) => {
       await this.handleIceCandidate(candidate);
     });
-
-    this.socket.on('signal-renegotiate', async ({ senderSocketId }) => {
-      if (this.targetSocketId) {
-        await this.initiateCall(this.targetSocketId);
-      }
-    });
   }
 
   // Mute / Unmute Microphone
@@ -225,36 +260,36 @@ class WebRTCManager {
     return this.isMuted;
   }
 
-  // Start Screen Share with a specific desktop source ID (Electron) or generic (Browser)
+  // ─── Start Screen Share ───────────────────────────────────────────────────
+  // Strategy: capture screen, then REBUILD the peer connection with
+  // audio + video so the remote peer always gets a fresh ontrack event.
   async startScreenShareWithSource(sourceId = null, withAudio = true) {
     try {
       let stream;
+
       if (sourceId) {
-        // Robust Electron desktopCapturer stream capture (no restrictive minWidth/minHeight that cause black frames)
+        // Electron desktopCapturer capture
         const videoConstraints = {
           mandatory: {
             chromeMediaSource: 'desktop',
             chromeMediaSourceId: sourceId,
             maxWidth: 1920,
             maxHeight: 1080,
-            maxFrameRate: 60
+            maxFrameRate: 30
           }
         };
 
-        const constraints = {
-          video: videoConstraints,
-          audio: withAudio ? {
-            mandatory: {
-              chromeMediaSource: 'desktop'
-            }
-          } : false
-        };
-
         try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: withAudio ? { mandatory: { chromeMediaSource: 'desktop' } } : false
+          });
         } catch (audioErr) {
-          console.warn('[WebRTC] System audio capture failed or not supported for this source, retrying video only:', audioErr);
-          stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+          console.warn('[WebRTC] Desktop audio capture failed, retrying video-only:', audioErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: false
+          });
         }
       } else {
         // Standard browser getDisplayMedia
@@ -272,31 +307,22 @@ class WebRTCManager {
         this.stopScreenShare();
       };
 
-      if (this.peerConnection) {
-        const senders = this.peerConnection.getSenders();
-        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-
-        if (videoSender) {
-          // Replace existing video sender — triggers renegotiation automatically via onnegotiationneeded
-          await videoSender.replaceTrack(screenVideoTrack);
-          // Force a new offer so the remote peer receives the video track
-          await this.initiateCall(this.targetSocketId);
-        } else {
-          // No video sender yet — add the track and send a new offer
-          this.peerConnection.addTrack(screenVideoTrack, this.screenStream);
-          await this.initiateCall(this.targetSocketId);
-        }
+      // Rebuild peer connection so the remote peer gets a fresh ontrack for the video
+      if (this.targetSocketId) {
+        await this._restartWithTracks(true);
       }
 
       return this.screenStream;
     } catch (err) {
-      console.error('[WebRTC] Error starting screen share with source:', err);
+      console.error('[WebRTC] Error starting screen share:', err);
       this.isScreenSharing = false;
       return null;
     }
   }
 
-  // Stop Screen Sharing
+  // ─── Stop Screen Sharing ──────────────────────────────────────────────────
+  // Strategy: stop tracks, then REBUILD the peer connection audio-only
+  // so the remote peer receives a fresh offer without video.
   stopScreenShare() {
     if (!this.isScreenSharing) return;
 
@@ -304,18 +330,13 @@ class WebRTCManager {
       this.screenStream.getTracks().forEach(track => track.stop());
       this.screenStream = null;
     }
-
     this.isScreenSharing = false;
 
-    if (this.peerConnection) {
-      const senders = this.peerConnection.getSenders();
-      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-
-      if (videoSender) {
-        // Replace with null-track (silence) and send new offer so remote knows video is gone
-        videoSender.replaceTrack(null).catch(() => {});
-        this.initiateCall(this.targetSocketId);
-      }
+    // Rebuild audio-only peer connection
+    if (this.targetSocketId) {
+      this._restartWithTracks(false).catch(err => {
+        console.error('[WebRTC] Error restarting after screen share stop:', err);
+      });
     }
 
     if (this.callbacks.onScreenShareStopped) {
@@ -323,11 +344,13 @@ class WebRTCManager {
     }
   }
 
-  renegotiate() {
-    if (this.targetSocketId) {
-      this.socket.emit('signal-renegotiate', { targetSocketId: this.targetSocketId });
-      this.initiateCall(this.targetSocketId);
-    }
+  // ─── Rebuild peer connection, add tracks, send new offer ─────────────────
+  async _restartWithTracks(includeScreen) {
+    if (!this.targetSocketId) return;
+
+    const pc = this._createPeerConnection(this.targetSocketId);
+    this._addLocalTracksToPc(pc, includeScreen);
+    await this.initiateCall(this.targetSocketId);
   }
 
   close() {
@@ -340,6 +363,8 @@ class WebRTCManager {
       this.localStream = null;
     }
     if (this.peerConnection) {
+      this.peerConnection.ontrack = null;
+      this.peerConnection.onicecandidate = null;
       this.peerConnection.close();
       this.peerConnection = null;
     }
