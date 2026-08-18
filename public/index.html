@@ -150,13 +150,13 @@
               <span class="user-circle-sub" id="localSubText">Você</span>
             </div>
 
-            <!-- Partner User (Girlfriend) -->
-            <div class="call-circle-item is-disconnected" id="partnerCircleItem">
+            <!-- Partner User (Girlfriend) - hidden until connected -->
+            <div class="call-circle-item hidden" id="partnerCircleItem">
               <div class="user-circle-avatar" id="partnerCircleAvatar">
-                <div class="user-status-dot-badge offline" id="partnerStatusBadge"></div>
+                <div class="user-status-dot-badge" id="partnerStatusBadge"></div>
               </div>
               <span class="user-circle-name" id="partnerDisplayName">Namorada</span>
-              <span class="user-circle-sub" id="partnerSubText">Aguardando...</span>
+              <span class="user-circle-sub" id="partnerSubText">Conectada</span>
             </div>
 
           </div>
@@ -184,12 +184,6 @@
             <button class="btn-call-pill" id="btnPillShare">
               <i class="ph ph-screencast"></i>
               <span id="pillShareText">Compartilhar</span>
-            </button>
-
-            <!-- Camera Toggle Pill Button -->
-            <button class="btn-call-pill" id="btnPillCamera">
-              <i class="ph ph-video-camera"></i>
-              <span>Câmera</span>
             </button>
 
             <!-- Disconnect / Encerrar Pill Button -->

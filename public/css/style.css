@@ -529,6 +529,11 @@ body {
   gap: 8px;
   position: relative;
   cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.call-circle-item.hidden {
+  display: none !important;
 }
 
 .user-circle-avatar {

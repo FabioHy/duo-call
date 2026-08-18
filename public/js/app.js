@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const pillMuteText = document.getElementById('pillMuteText');
   const btnPillShare = document.getElementById('btnPillShare');
   const pillShareText = document.getElementById('pillShareText');
-  const btnPillCamera = document.getElementById('btnPillCamera');
   const btnPillDisconnect = document.getElementById('btnPillDisconnect');
 
   // Screen Share Picker Modal Elements
@@ -458,28 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pill Action: Screen Share
   btnPillShare.addEventListener('click', openScreenSharePicker);
 
-  // Pill Action: Camera Toggle
-  btnPillCamera.addEventListener('click', async () => {
-    const isVideoActive = await webrtc.toggleCamera();
-    if (isVideoActive) {
-      btnPillCamera.classList.add('active-on');
-      btnPillCamera.innerHTML = '<i class="ph ph-video-camera"></i> <span>Câmera Ligada</span>';
-      activeStreamVideo.srcObject = webrtc.localStream;
-      activeStreamVideo.muted = true; // Strictly Muted!
-      streamViewport.classList.add('visible');
-      callCenterCard.classList.add('screenshare-active');
-    } else {
-      btnPillCamera.classList.remove('active-on');
-      btnPillCamera.innerHTML = '<i class="ph ph-video-camera-slash"></i> <span>Câmera</span>';
-      if (!webrtc.isScreenSharing) {
-        activeStreamVideo.srcObject = null;
-        streamViewport.classList.remove('visible');
-        callCenterCard.classList.remove('screenshare-active');
-      }
-    }
-    socket.emit('update-media-state', { isVideoOn: isVideoActive });
-  });
-
   // Pill Action: Disconnect / Encerrar
   btnPillDisconnect.addEventListener('click', () => {
     if (isInVoice) {
@@ -493,6 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillDisconnect.innerHTML = '<i class="ph-bold ph-phone-call"></i> <span>Reconectar</span>';
       btnPillDisconnect.classList.remove('btn-pill-disconnect');
       btnPillDisconnect.classList.add('btn-pill-connect');
+      localCircleItem.classList.add('hidden'); // Hide circle when disconnected (Discord style)
       sidebarLocalUser.classList.remove('is-speaking');
       sidebarLocalSub.textContent = 'Desconectado';
       sidebarLocalMutedBadge.classList.remove('visible');
@@ -507,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillDisconnect.classList.remove('btn-pill-connect');
       btnPillDisconnect.classList.add('btn-pill-disconnect');
       dockCallStatus.classList.remove('offline');
+      localCircleItem.classList.remove('hidden'); // Show circle when connected
       sidebarLocalSub.textContent = 'Em chamada';
       sounds.playJoin();
     }
@@ -619,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerSocketId = null;
     isConnectedWithPartner = false;
     partnerSubText.textContent = 'Aguardando...';
-    partnerCircleItem.classList.add('is-disconnected');
+    partnerCircleItem.classList.add('hidden'); // Hide partner circle when disconnected (Discord style)
     partnerStatusBadge.classList.add('offline');
     // Sidebar partner card — offline state
     sidebarPartnerUser.classList.add('is-offline');
@@ -686,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     partnerProfile.username = peer.username || partnerProfile.username;
     partnerProfile.avatarUrl = peer.avatarUrl || '';
     partnerProfile.statusText = 'Em chamada';
-    partnerCircleItem.classList.remove('is-disconnected');
+    partnerCircleItem.classList.remove('hidden'); // Show partner circle when connected
     partnerStatusBadge.classList.remove('offline');
     // Sidebar partner card — online state
     sidebarPartnerUser.classList.remove('is-offline', 'is-speaking');
@@ -721,7 +700,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2600);
   }
 
-  // Chat Messaging
+  // Chat Messaging & Deduplication
+  const renderedMessageIds = new Set();
+
   function sendChatMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
@@ -764,6 +745,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function appendChatMessage(msg) {
+    const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + msg.text);
+    if (renderedMessageIds.has(msgKey)) return; // Prevent duplicate messages on reconnect!
+    renderedMessageIds.add(msgKey);
+
     const bubbleRow = document.createElement('div');
     bubbleRow.className = 'chat-bubble-row';
 
