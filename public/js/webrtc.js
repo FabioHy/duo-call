@@ -1,4 +1,4 @@
-// WebRTC Connection and Media Stream Manager
+// WebRTC Connection and Media Stream Manager with Robust Cross-Network Support
 
 class WebRTCManager {
   constructor(socket, callbacks = {}) {
@@ -15,13 +15,22 @@ class WebRTCManager {
     this.isVideoOn = false;
     this.isScreenSharing = false;
 
+    // Queue for ICE candidates that arrive before setRemoteDescription
+    this.iceCandidateQueue = [];
+    this.isSettingRemoteDescription = false;
+
+    // Comprehensive public STUN servers for cross-network connectivity
     this.rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:stun.services.mozilla.com:3478' }
+      ],
+      iceCandidatePoolSize: 10
     };
 
     this.setupSignalingListeners();
@@ -55,6 +64,7 @@ class WebRTCManager {
   // Create or retrieve existing RTCPeerConnection
   getOrCreatePeerConnection(targetSocketId) {
     if (this.peerConnection) {
+      this.targetSocketId = targetSocketId;
       return this.peerConnection;
     }
 
@@ -71,9 +81,10 @@ class WebRTCManager {
     };
 
     pc.ontrack = (event) => {
-      console.log('[WebRTC] Received remote track:', event.track.kind);
+      console.log('[WebRTC] Received remote track:', event.track.kind, 'ReadyState:', event.track.readyState);
+      const stream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
       if (this.callbacks.onRemoteStream) {
-        this.callbacks.onRemoteStream(event.streams[0], event.track);
+        this.callbacks.onRemoteStream(stream, event.track);
       }
     };
 
@@ -84,6 +95,14 @@ class WebRTCManager {
       }
     };
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE Connection State:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') {
+        pc.restartIce();
+      }
+    };
+
+    // Add local tracks if available
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
         pc.addTrack(track, this.localStream);
@@ -92,6 +111,19 @@ class WebRTCManager {
 
     this.peerConnection = pc;
     return pc;
+  }
+
+  // Drain queued ICE candidates once remote description is set
+  async processIceCandidateQueue() {
+    if (!this.peerConnection || !this.peerConnection.remoteDescription) return;
+    while (this.iceCandidateQueue.length > 0) {
+      const candidate = this.iceCandidateQueue.shift();
+      try {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn('[WebRTC] Error adding queued ICE candidate:', err);
+      }
+    }
   }
 
   // Initiate call / offer
@@ -111,7 +143,7 @@ class WebRTCManager {
         sdp: pc.localDescription
       });
     } catch (err) {
-      console.error('Error creating WebRTC offer:', err);
+      console.error('[WebRTC] Error creating offer:', err);
     }
   }
 
@@ -122,6 +154,8 @@ class WebRTCManager {
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      await this.processIceCandidateQueue();
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -130,7 +164,7 @@ class WebRTCManager {
         sdp: pc.localDescription
       });
     } catch (err) {
-      console.error('Error handling WebRTC offer:', err);
+      console.error('[WebRTC] Error handling offer:', err);
     }
   }
 
@@ -139,18 +173,23 @@ class WebRTCManager {
     if (!this.peerConnection) return;
     try {
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+      await this.processIceCandidateQueue();
     } catch (err) {
-      console.error('Error setting remote description from answer:', err);
+      console.error('[WebRTC] Error setting remote description from answer:', err);
     }
   }
 
   // Handle ICE Candidate
   async handleIceCandidate(candidate) {
-    if (!this.peerConnection) return;
+    if (!this.peerConnection || !this.peerConnection.remoteDescription) {
+      this.iceCandidateQueue.push(candidate);
+      return;
+    }
+
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
-      console.error('Error adding ICE candidate:', err);
+      console.error('[WebRTC] Error adding ICE candidate:', err);
     }
   }
 
@@ -186,84 +225,39 @@ class WebRTCManager {
     return this.isMuted;
   }
 
-  // Toggle Camera
-  async toggleCamera() {
-    if (this.isVideoOn) {
-      const videoTrack = this.localStream?.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.stop();
-        this.localStream.removeTrack(videoTrack);
-      }
-      this.isVideoOn = false;
-
-      if (this.peerConnection && !this.isScreenSharing) {
-        const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) {
-          this.peerConnection.removeTrack(sender);
-          this.renegotiate();
-        }
-      }
-      return false;
-    } else {
-      try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        const videoTrack = newStream.getVideoTracks()[0];
-
-        if (this.localStream) {
-          this.localStream.addTrack(videoTrack);
-        } else {
-          this.localStream = newStream;
-        }
-
-        this.isVideoOn = true;
-
-        if (this.peerConnection && !this.isScreenSharing) {
-          const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-          if (sender) {
-            sender.replaceTrack(videoTrack);
-          } else {
-            this.peerConnection.addTrack(videoTrack, this.localStream);
-            this.renegotiate();
-          }
-        }
-
-        return true;
-      } catch (err) {
-        console.error('Failed to enable camera:', err);
-        return false;
-      }
-    }
-  }
-
   // Start Screen Share with a specific desktop source ID (Electron) or generic (Browser)
   async startScreenShareWithSource(sourceId = null, withAudio = true) {
     try {
       let stream;
       if (sourceId) {
-        // Electron desktopCapturer stream
-        stream = await navigator.mediaDevices.getUserMedia({
+        // Robust Electron desktopCapturer stream capture (no restrictive minWidth/minHeight that cause black frames)
+        const videoConstraints = {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            maxWidth: 1920,
+            maxHeight: 1080,
+            maxFrameRate: 60
+          }
+        };
+
+        const constraints = {
+          video: videoConstraints,
           audio: withAudio ? {
             mandatory: {
               chromeMediaSource: 'desktop'
             }
-          } : false,
-          video: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: sourceId,
-              minWidth: 1280,
-              maxWidth: 1920,
-              minHeight: 720,
-              maxHeight: 1080,
-              minFrameRate: 30,
-              maxFrameRate: 60
-            }
-          }
-        });
+          } : false
+        };
+
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (audioErr) {
+          console.warn('[WebRTC] System audio capture failed or not supported for this source, retrying video only:', audioErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+        }
       } else {
-        // Standard getDisplayMedia
+        // Standard browser getDisplayMedia
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: 'always', frameRate: { ideal: 30, max: 60 } },
           audio: withAudio
@@ -279,9 +273,11 @@ class WebRTCManager {
       };
 
       if (this.peerConnection) {
-        const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) {
-          sender.replaceTrack(screenVideoTrack);
+        const senders = this.peerConnection.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+
+        if (videoSender) {
+          await videoSender.replaceTrack(screenVideoTrack);
         } else {
           this.peerConnection.addTrack(screenVideoTrack, this.screenStream);
           this.renegotiate();
@@ -290,7 +286,7 @@ class WebRTCManager {
 
       return this.screenStream;
     } catch (err) {
-      console.error('Error starting screen share with source:', err);
+      console.error('[WebRTC] Error starting screen share with source:', err);
       this.isScreenSharing = false;
       return null;
     }
@@ -308,16 +304,12 @@ class WebRTCManager {
     this.isScreenSharing = false;
 
     if (this.peerConnection) {
-      const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-      const cameraTrack = this.isVideoOn ? this.localStream?.getVideoTracks()[0] : null;
+      const senders = this.peerConnection.getSenders();
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
 
-      if (sender) {
-        if (cameraTrack) {
-          sender.replaceTrack(cameraTrack);
-        } else {
-          this.peerConnection.removeTrack(sender);
-          this.renegotiate();
-        }
+      if (videoSender) {
+        this.peerConnection.removeTrack(videoSender);
+        this.renegotiate();
       }
     }
 
@@ -350,5 +342,6 @@ class WebRTCManager {
     this.isScreenSharing = false;
     this.isVideoOn = false;
     this.isMuted = false;
+    this.iceCandidateQueue = [];
   }
 }

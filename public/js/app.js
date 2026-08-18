@@ -175,11 +175,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // WebRTC Manager
   const webrtc = new WebRTCManager(socket, {
     onRemoteStream: (stream, track) => {
-      console.log('Remote track received:', track.kind);
+      console.log('[WebRTC] Remote track received:', track.kind, 'ReadyState:', track.readyState);
       if (track.kind === 'video') {
-        activeStreamVideo.srcObject = stream;
-        activeStreamVideo.muted = false; // Remote partner stream audio is allowed
-        activeStreamVideo.play().catch(e => console.log('Remote video error:', e));
+        const videoStream = (stream && stream.getVideoTracks().length > 0) ? stream : new MediaStream([track]);
+        activeStreamVideo.srcObject = videoStream;
+        activeStreamVideo.muted = true; // Avoid browser blocking autoplay; audio plays through partnerAudio
+        
+        const tryPlay = () => {
+          activeStreamVideo.play().then(() => {
+            console.log('[WebRTC] Remote video playing successfully');
+          }).catch(e => {
+            console.warn('[WebRTC] Video play retry:', e);
+          });
+        };
+
+        track.onunmute = () => {
+          console.log('[WebRTC] Remote video track unmuted, playing stream');
+          tryPlay();
+        };
+
+        tryPlay();
         streamViewport.classList.add('visible');
         callCenterCard.classList.add('screenshare-active');
       } else if (track.kind === 'audio') {
