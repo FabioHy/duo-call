@@ -92,7 +92,8 @@ io.on('connection', (socket) => {
       avatarEmoji: profile?.avatarEmoji || defaultEmoji,
       isMuted: false,
       isScreenSharing: false,
-      statusText: 'Em chamada'
+      isInCall: false,
+      statusText: 'Online'
     };
 
     activeSlots[userKey] = userData;
@@ -153,6 +154,21 @@ io.on('connection', (socket) => {
       io.to(activeSlots[partnerKey].socketId).emit('peer-profile-updated', user);
     }
     broadcastAvailableSlots();
+  });
+
+  // Call State (In Call / Not In Call)
+  socket.on('call-state-changed', ({ isInCall }) => {
+    if (!socket.userKey || !activeSlots[socket.userKey]) return;
+    activeSlots[socket.userKey].isInCall = isInCall;
+    activeSlots[socket.userKey].statusText = isInCall ? 'Em chamada' : 'Online';
+
+    const partnerKey = socket.userKey === 'nao' ? 'rayo' : 'nao';
+    if (activeSlots[partnerKey]) {
+      io.to(activeSlots[partnerKey].socketId).emit('peer-call-state-changed', {
+        userKey: socket.userKey,
+        isInCall
+      });
+    }
   });
 
   // Media State (Mute, Screen Share)

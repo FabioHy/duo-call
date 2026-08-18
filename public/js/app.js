@@ -392,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navStatusDot.classList.remove('offline');
       navStatusText.textContent = 'Em chamada';
       sidebarLocalSub.textContent = 'Em chamada';
+      socket.emit('call-state-changed', { isInCall: true });
     } catch (e) {
       console.warn('Microphone access warning:', e);
     }
@@ -622,20 +623,21 @@ document.addEventListener('DOMContentLoaded', () => {
       isInVoice = false;
       webrtc.close();
       vad.stop();
-      navStatusDot.classList.add('offline');
-      navStatusText.textContent = 'Desconectado';
-      dockCallStatus.textContent = 'Desconectado';
-      dockCallStatus.classList.add('offline');
+      navStatusDot.classList.remove('offline');
+      navStatusText.textContent = 'Online';
+      dockCallStatus.textContent = 'Online';
+      dockCallStatus.classList.remove('offline');
       btnPillDisconnect.innerHTML = '<i class="ph-bold ph-phone-call"></i> <span>Reconectar</span>';
       btnPillDisconnect.classList.remove('btn-pill-disconnect');
       btnPillDisconnect.classList.add('btn-pill-connect');
       localCircleItem.classList.add('hidden');
       sidebarLocalUser.classList.remove('is-speaking');
-      sidebarLocalSub.textContent = 'Desconectado';
+      sidebarLocalSub.textContent = 'Online';
       sidebarLocalMutedBadge.classList.remove('visible');
       sidebarLocalShareBadge.classList.remove('visible');
       streamViewport.classList.remove('visible', 'stream-is-fullscreen');
       callCenterCard.classList.remove('screenshare-active');
+      socket.emit('call-state-changed', { isInCall: false });
       sounds.playLeave();
       showToast('Chamada encerrada 🔇');
     } else {
@@ -755,17 +757,47 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('peer-left', ({ username }) => {
-    showToast(`${username || 'Namorada'} saiu da chamada`);
+    showToast(`${username || 'Namorada'} saiu do site`);
     partnerSocketId = null;
     isConnectedWithPartner = false;
     partnerCircleItem.classList.add('hidden');
     partnerStatusBadge.classList.add('offline');
     sidebarPartnerUser.classList.add('is-offline');
     sidebarPartnerUser.classList.remove('is-speaking');
-    sidebarPartnerSub.textContent = 'Aguardando...';
+    sidebarPartnerSub.textContent = 'Offline';
     sidebarPartnerMutedBadge.classList.remove('visible');
     sidebarPartnerShareBadge.classList.remove('visible');
     sounds.playLeave();
+  });
+
+  socket.on('peer-call-state-changed', ({ isInCall }) => {
+    if (isInCall) {
+      // Partner joined the call
+      partnerCircleItem.classList.remove('hidden');
+      partnerStatusBadge.classList.remove('offline');
+      sidebarPartnerUser.classList.remove('is-offline');
+      sidebarPartnerSub.textContent = 'Em chamada';
+      showToast(`${partnerProfile.username} entrou na chamada! 🎧`);
+      sounds.playJoin();
+      // Initiate WebRTC if we are also in call
+      if (isInVoice && partnerSocketId) {
+        webrtc.initiateCall(partnerSocketId);
+      }
+    } else {
+      // Partner left the call but is still on the site
+      partnerCircleItem.classList.add('hidden');
+      partnerStatusBadge.classList.add('offline');
+      sidebarPartnerUser.classList.remove('is-speaking');
+      sidebarPartnerSub.textContent = 'Online';
+      sidebarPartnerMutedBadge.classList.remove('visible');
+      sidebarPartnerShareBadge.classList.remove('visible');
+      if (!webrtc.isScreenSharing) {
+        streamViewport.classList.remove('visible');
+        callCenterCard.classList.remove('screenshare-active');
+      }
+      showToast(`${partnerProfile.username} saiu da chamada`);
+      sounds.playLeave();
+    }
   });
 
   socket.on('peer-profile-updated', (updatedPeer) => {
@@ -823,11 +855,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const partnerKey = myUserKey === 'nao' ? 'rayo' : 'nao';
     partnerProfile.username = peer.username || (partnerKey === 'nao' ? 'Nao' : 'Rayo');
     partnerProfile.avatarUrl = peer.avatarUrl || '';
-    partnerProfile.statusText = 'Em chamada';
-    partnerCircleItem.classList.remove('hidden');
-    partnerStatusBadge.classList.remove('offline');
+    partnerSocketId = peer.socketId;
+    const peerIsInCall = peer.isInCall || false;
+    partnerProfile.statusText = peerIsInCall ? 'Em chamada' : 'Online';
     sidebarPartnerUser.classList.remove('is-offline', 'is-speaking');
-    sidebarPartnerSub.textContent = 'Em chamada';
+    sidebarPartnerSub.textContent = peerIsInCall ? 'Em chamada' : 'Online';
+    if (peerIsInCall) {
+      partnerCircleItem.classList.remove('hidden');
+      partnerStatusBadge.classList.remove('offline');
+    } else {
+      partnerCircleItem.classList.add('hidden');
+      partnerStatusBadge.classList.add('offline');
+    }
     applyProfileUI();
   }
 
