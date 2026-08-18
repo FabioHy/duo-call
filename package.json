@@ -4,12 +4,12 @@
   "description": "Duo - Private 2-person Calling & Screen Sharing App",
   "main": "electron-main.js",
   "scripts": {
-    "start": "electron .",
-    "desktop": "electron .",
+    "start": "node server.js",
     "server": "node server.js",
+    "desktop": "electron electron-main.js",
+    "dev": "electron electron-main.js",
     "build:win": "electron-builder --win portable",
-    "build:installer": "electron-builder --win nsis",
-    "dev": "electron ."
+    "build:installer": "electron-builder --win nsis"
   },
   "build": {
     "appId": "com.duo.app",
