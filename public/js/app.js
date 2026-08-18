@@ -1179,6 +1179,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function isImageUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return false;
+    if (/\.(gif|webp|png|jpe?g)(\?.*)?$/i.test(trimmed)) return true;
+    if (trimmed.includes('media.giphy.com') || trimmed.includes('tenor.com') || trimmed.includes('c.tenor.com') || trimmed.includes('i.imgur.com')) return true;
+    return false;
+  }
+
   // Chat Messaging & Deduplication
   const renderedMessageIds = new Set();
 
@@ -1186,12 +1195,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = chatInput.value.trim();
     if (!text) return;
 
+    const isImg = isImageUrl(text);
+
     socket.emit('send-message', {
-      text,
+      text: isImg ? '' : text,
+      gifUrl: isImg ? text : null,
       senderName: profile.username,
       senderAvatar: profile.avatarUrl,
       senderNameColor: profile.nameColor || (myUserKey === 'nao' ? '#00e676' : '#ff79c6'),
-      type: 'text',
+      type: isImg ? 'gif' : 'text',
       timestamp: new Date().toISOString()
     });
 
@@ -1225,7 +1237,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function appendChatMessage(msg) {
-    const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + (msg.gifUrl || msg.text));
+    const effectiveGif = msg.gifUrl || (isImageUrl(msg.text) ? msg.text.trim() : null);
+    const effectiveText = (effectiveGif && effectiveGif === msg.text?.trim()) ? '' : (msg.text || '');
+
+    const msgKey = msg.id || (msg.senderName + '_' + msg.timestamp + '_' + (effectiveGif || effectiveText));
     if (renderedMessageIds.has(msgKey)) return;
     renderedMessageIds.add(msgKey);
 
@@ -1237,15 +1252,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let mediaContent = '';
-    if (msg.gifUrl) {
+    if (effectiveGif) {
       mediaContent = `
         <div class="chat-bubble-gif-wrap">
-          <img src="${escapeHTML(msg.gifUrl)}" class="chat-bubble-gif-img" alt="GIF" loading="lazy" />
+          <img src="${effectiveGif}" class="chat-bubble-gif-img" alt="GIF" loading="lazy" />
         </div>
       `;
     }
 
-    const textContent = msg.text ? `<div class="chat-bubble-text">${escapeHTML(msg.text)}</div>` : '';
+    const textContent = effectiveText ? `<div class="chat-bubble-text">${escapeHTML(effectiveText)}</div>` : '';
 
     bubbleRow.innerHTML = `
       <div class="chat-bubble-avatar" style="${msg.senderAvatar ? `background-image: url('${msg.senderAvatar}');` : ''}">
@@ -1264,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chatMessages.appendChild(bubbleRow);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    if (msg.gifUrl) {
+    if (effectiveGif) {
       const img = bubbleRow.querySelector('.chat-bubble-gif-img');
       if (img) {
         img.onload = () => {
