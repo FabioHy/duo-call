@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duo</title>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <!-- PWA Meta -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#060913">
+  <link rel="icon" type="image/png" href="/assets/icon-192.png">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="appLayout">
+    
+    <!-- 1. Left Couple Space Sidebar (Intimate & Useful) -->
+    <aside class="couple-sidebar" id="coupleSidebar">
+      <div class="sidebar-top-title">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i class="ph-fill ph-heart" style="color: var(--btn-disconnect-text);"></i>
+          <span>Nosso Espaço</span>
+        </div>
+      </div>
+
+      <div class="sidebar-scroll-area">
+        <!-- Couple Art Illustration Card -->
+        <div class="couple-art-card" style="background-image: url('assets/couple-art.jpg');">
+          <div class="couple-art-overlay"></div>
+          <div class="couple-art-text">
+            <span>Duo & Nós Dois</span>
+            <i class="ph-fill ph-sparkle" style="color: #ffd166;"></i>
+          </div>
+          <div class="couple-art-sub">Juntos no mesmo cantinho ✨</div>
+        </div>
+
+        <!-- Voice Users in Call — compact cards with speaking ring + badges -->
+        <div>
+          <div class="sidebar-voice-section-title" style="margin-bottom: 8px;">Em Chamada</div>
+
+          <!-- Local User Card -->
+          <div class="sidebar-voice-user" id="sidebarLocalUser" style="margin-bottom: 6px;">
+            <div class="sidebar-vc-avatar-wrap">
+              <div class="sidebar-vc-avatar" id="sidebarLocalAvatar"></div>
+              <div class="sidebar-vc-status-dot" id="sidebarLocalDot"></div>
+            </div>
+            <div class="sidebar-vc-info">
+              <span class="sidebar-vc-name" id="sidebarLocalName">Você</span>
+              <span class="sidebar-vc-sub" id="sidebarLocalSub">Em chamada</span>
+            </div>
+            <div class="sidebar-vc-badges">
+              <div class="sidebar-vc-badge badge-muted" id="sidebarLocalMutedBadge" title="Mutado">
+                <i class="ph-fill ph-microphone-slash"></i>
+              </div>
+              <div class="sidebar-vc-badge badge-sharing" id="sidebarLocalShareBadge" title="Transmitindo tela">
+                <i class="ph-fill ph-screencast"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Partner User Card -->
+          <div class="sidebar-voice-user is-offline" id="sidebarPartnerUser">
+            <div class="sidebar-vc-avatar-wrap">
+              <div class="sidebar-vc-avatar" id="sidebarPartnerAvatar"></div>
+              <div class="sidebar-vc-status-dot" id="sidebarPartnerDot"></div>
+            </div>
+            <div class="sidebar-vc-info">
+              <span class="sidebar-vc-name" id="sidebarPartnerName">Namorada</span>
+              <span class="sidebar-vc-sub" id="sidebarPartnerSub">Aguardando...</span>
+            </div>
+            <div class="sidebar-vc-badges">
+              <div class="sidebar-vc-badge badge-muted" id="sidebarPartnerMutedBadge" title="Mutada">
+                <i class="ph-fill ph-microphone-slash"></i>
+              </div>
+              <div class="sidebar-vc-badge badge-sharing" id="sidebarPartnerShareBadge" title="Transmitindo tela">
+                <i class="ph-fill ph-screencast"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared Couple Scratchpad / Watchlist -->
+        <div class="notes-widget">
+          <div class="widget-title" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span>Nossos Planos & Filmes</span>
+            <i class="ph ph-note-pencil" style="font-size: 0.9rem;"></i>
+          </div>
+          <textarea class="sidebar-notes-area" id="sidebarNotes" placeholder="• Filmes para assistir&#10;• Jogos para jogar juntos&#10;• Links e recadinhos 💖"></textarea>
+        </div>
+      </div>
+
+      <!-- Bottom User Profile Dock -->
+      <div class="sidebar-user-dock">
+        <div class="dock-user-info" id="btnDockProfile" title="Clique para editar seu perfil e foto">
+          <div class="dock-avatar" id="dockAvatar"></div>
+          <div class="dock-name-col">
+            <span class="dock-user-name" id="dockName">Você</span>
+            <span class="dock-user-sub" id="dockCallStatus">Em chamada</span>
+          </div>
+        </div>
+        <button class="dock-settings-btn" id="btnSettings" title="Editar Perfil">
+          <i class="ph ph-gear"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 2. Main Stage -->
+    <main class="main-stage">
+      
+      <!-- Top Navbar with Sidebar Toggle -->
+      <header class="top-navbar">
+        <div class="nav-left-group">
+          <button class="nav-toggle-sidebar-btn" id="btnToggleSidebar" title="Recolher / Expandir Menu Lateral">
+            <i class="ph ph-sidebar"></i>
+          </button>
+          <div class="nav-channel-title">
+            <i class="ph-bold ph-chats-circle" style="color: var(--accent-green);"></i>
+            <span>Duo Chat & Chamada</span>
+          </div>
+        </div>
+
+        <div class="nav-right-actions">
+          <div class="nav-call-status-badge">
+            <div class="nav-status-dot" id="navStatusDot"></div>
+            <span id="navStatusText">Em chamada</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Stage Body -->
+      <div class="stage-content-body">
+        
+        <!-- Floating Reactions Particles Layer -->
+        <div class="reactions-overlay" id="reactionsOverlay"></div>
+
+        <!-- 3. Central Voice Call Box -->
+        <section class="call-center-card" id="callCenterCard">
+          
+          <!-- Users in Call (Circular Avatars Side by Side) -->
+          <div class="call-users-row" id="callUsersRow">
+            
+            <!-- Local User (You) -->
+            <div class="call-circle-item is-speaking" id="localCircleItem" title="Clique para editar seu perfil">
+              <div class="user-circle-avatar" id="localCircleAvatar">
+                <div class="user-status-dot-badge" id="localStatusBadge"></div>
+              </div>
+              <span class="user-circle-name" id="localDisplayName">Você</span>
+              <span class="user-circle-sub" id="localSubText">Você</span>
+            </div>
+
+            <!-- Partner User (Girlfriend) -->
+            <div class="call-circle-item is-disconnected" id="partnerCircleItem">
+              <div class="user-circle-avatar" id="partnerCircleAvatar">
+                <div class="user-status-dot-badge offline" id="partnerStatusBadge"></div>
+              </div>
+              <span class="user-circle-name" id="partnerDisplayName">Namorada</span>
+              <span class="user-circle-sub" id="partnerSubText">Aguardando...</span>
+            </div>
+
+          </div>
+
+          <!-- Active Screen Share / Video Viewport (Strictly Muted to prevent Audio Feedback Loop!) -->
+          <div class="active-stream-viewport" id="streamViewport">
+            <video id="activeStreamVideo" class="active-stream-video" autoplay playsinline muted></video>
+            <button class="stream-fullscreen-btn" id="btnFullscreenStream" title="Tela Cheia (⛶)">
+              <i class="ph ph-corners-out"></i>
+            </button>
+          </div>
+
+          <!-- Audio Element for Partner Remote Sound -->
+          <audio id="partnerAudio" autoplay playsinline></audio>
+
+          <!-- Pill Action Buttons Row -->
+          <div class="call-pills-row">
+            <!-- Mute Pill Button -->
+            <button class="btn-call-pill" id="btnPillMute">
+              <i class="ph ph-microphone"></i>
+              <span id="pillMuteText">Mutar</span>
+            </button>
+
+            <!-- Screen Share Pill Button -->
+            <button class="btn-call-pill" id="btnPillShare">
+              <i class="ph ph-screencast"></i>
+              <span id="pillShareText">Compartilhar</span>
+            </button>
+
+            <!-- Camera Toggle Pill Button -->
+            <button class="btn-call-pill" id="btnPillCamera">
+              <i class="ph ph-video-camera"></i>
+              <span>Câmera</span>
+            </button>
+
+            <!-- Disconnect / Encerrar Pill Button -->
+            <button class="btn-call-pill btn-pill-disconnect" id="btnPillDisconnect">
+              <i class="ph-bold ph-phone-disconnect"></i>
+              <span>Encerrar</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 4. Bottom Chat Stream Section -->
+        <section class="chat-stream-section">
+          
+          <!-- Chat Messages Flow -->
+          <div class="chat-messages-scroll" id="chatMessages">
+            <div class="chat-bubble-row">
+              <div class="chat-bubble-avatar" id="chatBotAvatar">💖</div>
+              <div class="chat-bubble-content">
+                <div class="chat-bubble-header">
+                  <span class="chat-bubble-author" style="color: var(--accent-green);">Duo</span>
+                  <span class="chat-bubble-time">Hoje</span>
+                </div>
+                <div class="chat-bubble-text">
+                  Conversa privada conectada. Fale, compartilhe a tela ou envie mensagens aqui! ✨
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Input Bar -->
+          <div class="chat-input-bar-container">
+            <div class="chat-input-box">
+              <input type="text" class="chat-text-input" id="chatInput" placeholder="Conversar com sua namorada...">
+              <button class="chat-action-btn" id="btnReactionHeart" title="Enviar Coração">💖</button>
+              <button class="chat-action-btn" id="btnSendMessage" title="Enviar mensagem">
+                <i class="ph-bold ph-paper-plane-right"></i>
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+    </main>
+
+    <!-- 5. Screen Share Source Picker Modal (Discord Style) -->
+    <div class="modal-backdrop" id="screenPickerModal">
+      <div class="screen-picker-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;">Compartilhar Tela</h3>
+          <button class="nav-toggle-sidebar-btn" id="btnCloseScreenPicker" title="Fechar">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+
+        <div class="screen-picker-tabs">
+          <button class="picker-tab-btn active" id="tabScreens">🖥️ Telas Inteiras</button>
+          <button class="picker-tab-btn" id="tabWindows">🪟 Janelas de Aplicativos</button>
+        </div>
+
+        <div class="sources-grid-container" id="sourcesGridContainer">
+          <!-- Populated dynamically with live screen/window thumbnails -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+          <label style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="checkShareAudio" checked style="accent-color: var(--accent-green);">
+            <span>Compartilhar áudio do sistema (Jogo/PC)</span>
+          </label>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-modal-cancel" id="btnCancelScreenPicker" style="padding: 8px 18px;">Cancelar</button>
+            <button class="btn-modal-save" id="btnConfirmScreenShare" style="padding: 8px 24px;">Transmitir ao Vivo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Profile Customization Modal -->
+    <div class="modal-backdrop" id="profileModal">
+      <div class="profile-card-modal">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;">Editar Perfil</h3>
+        
+        <!-- Avatar Preview with file upload click -->
+        <div class="profile-modal-avatar-preview" id="profileModalAvatarPreview" title="Clique para escolher uma foto do seu computador">
+          <input type="file" id="fileAvatarInput" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="profile-form-group">
+          <label class="profile-label">Seu Nome de Exibição</label>
+          <input type="text" class="profile-text-input" id="inputProfileName" placeholder="Ex: Fabio">
+        </div>
+
+        <div class="profile-form-group">
+          <label class="profile-label">Ou Cole a URL de uma Imagem</label>
+          <input type="text" class="profile-text-input" id="inputProfileUrl" placeholder="https://...">
+        </div>
+
+        <div class="profile-modal-actions">
+          <button class="btn-modal-cancel" id="btnCancelProfile">Cancelar</button>
+          <button class="btn-modal-save" id="btnSaveProfile">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Alerts -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <!-- Socket.io Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Cloud Server Config -->
+  <script src="duo-config.js"></script>
+  <!-- Application Scripts -->
+  <script src="js/sounds.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/webrtc.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "name": "duo-call",
+  "version": "1.0.0",
+  "description": "Duo - Private 2-person Calling & Screen Sharing App",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "desktop": "electron .",
+    "server": "node server.js",
+    "build:win": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis",
+    "dev": "electron ."
+  },
+  "build": {
+    "appId": "com.duo.app",
+    "productName": "Duo",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "public/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Duo"
+    }
+  },
+  "keywords": [
+    "webrtc",
+    "calling",
+    "screen-sharing",
+    "socketio"
+  ],
+  "author": "Fabio",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.0.24"
+  }
+}

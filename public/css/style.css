@@ -1,0 +1,1122 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Midnight Navy Theme */
+  --bg-app: #060913;
+  --bg-sidebar: #0a1020;
+  --bg-card: #0d152a;
+  --bg-card-elevated: #111b33;
+  --bg-input: #111b33;
+  --bg-pill: #15223e;
+  --bg-pill-hover: #1c2e54;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+
+  --accent-green: #00e676;
+  --accent-green-border: #00e676;
+  --accent-green-glow: rgba(0, 230, 118, 0.35);
+
+  --btn-disconnect-bg: #2d131a;
+  --btn-disconnect-text: #ff4d4f;
+  --btn-disconnect-hover: #3d1822;
+
+  --text-header: #ffffff;
+  --text-primary: #e2e8f0;
+  --text-muted: #7b8b9f;
+  --text-dim: #4e5d73;
+
+  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 9999px;
+  --radius-circle: 50%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #111b33;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #1c2e54;
+}
+
+/* App Container */
+#appLayout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-app);
+  position: relative;
+}
+
+/* 1. Left Couple Space Sidebar (260px) */
+.couple-sidebar {
+  width: 260px;
+  height: 100%;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s ease;
+  overflow: hidden;
+}
+
+.couple-sidebar.collapsed {
+  width: 0px;
+  margin-left: -1px;
+  border-right: none;
+}
+
+.sidebar-top-title {
+  height: 48px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-header);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.sidebar-scroll-area {
+  flex: 1;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* Couple Art Card Widget */
+.couple-art-card {
+  position: relative;
+  height: 115px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 10px 12px;
+}
+
+.couple-art-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 9, 19, 0.1) 0%, rgba(6, 9, 19, 0.85) 90%);
+}
+
+.couple-art-text {
+  position: relative;
+  z-index: 2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.couple-art-sub {
+  position: relative;
+  z-index: 2;
+  font-size: 0.7rem;
+  color: var(--accent-green);
+}
+
+/* ─── Sidebar Voice User Cards (replaces ambient widget) ──────────────── */
+.sidebar-voice-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0 4px;
+}
+
+.sidebar-voice-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+  transition: background 0.15s ease;
+  cursor: default;
+}
+
+.sidebar-voice-user:hover {
+  background: var(--bg-card-elevated);
+}
+
+/* Avatar circle with speaking ring */
+.sidebar-vc-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sidebar-vc-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  color: #fff;
+  border: 2.5px solid transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.sidebar-voice-user.is-speaking .sidebar-vc-avatar {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 2px rgba(0, 230, 118, 0.25), 0 0 10px rgba(0, 230, 118, 0.2);
+  transform: scale(1.05);
+}
+
+/* Status dot on avatar (online / offline) */
+.sidebar-vc-status-dot {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  border: 2px solid var(--bg-card);
+  transition: background 0.2s ease;
+}
+
+.sidebar-voice-user.is-offline .sidebar-vc-status-dot {
+  background: var(--text-dim);
+}
+
+/* Name + sub-status text */
+.sidebar-vc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sidebar-vc-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-header);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-vc-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-voice-user.is-speaking .sidebar-vc-sub {
+  color: var(--accent-green);
+}
+
+.sidebar-voice-user.is-offline .sidebar-vc-name {
+  opacity: 0.55;
+}
+
+.sidebar-voice-user.is-offline .sidebar-vc-sub {
+  color: var(--text-dim);
+}
+
+/* Icon badges row (muted, screenshare) */
+.sidebar-vc-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-vc-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: none;   /* hidden by default — shown via JS */
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+}
+
+.sidebar-vc-badge.badge-muted {
+  background: rgba(255, 77, 79, 0.18);
+  color: var(--btn-disconnect-text);
+}
+
+.sidebar-vc-badge.badge-sharing {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--accent-green);
+}
+
+.sidebar-vc-badge.visible {
+  display: flex;
+}
+
+
+/* Shared Notes / Scratchpad Widget */
+.notes-widget {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 120px;
+}
+
+.sidebar-notes-area {
+  flex: 1;
+  background: var(--bg-pill);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+}
+
+.sidebar-notes-area:focus {
+  border-color: rgba(0, 230, 118, 0.4);
+}
+
+/* Bottom Sidebar User Dock */
+.sidebar-user-dock {
+  height: 54px;
+  padding: 0 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dock-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.dock-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+}
+
+.dock-name-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.dock-user-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.dock-user-sub {
+  font-size: 0.7rem;
+  color: var(--accent-green);
+}
+
+.dock-user-sub.offline {
+  color: var(--text-muted);
+}
+
+.dock-settings-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.dock-settings-btn:hover {
+  color: #fff;
+  background: var(--bg-hover);
+}
+
+/* 2. Main Stage */
+.main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-app);
+}
+
+.top-navbar {
+  height: 48px;
+  padding: 0 16px;
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.nav-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-toggle-sidebar-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.nav-toggle-sidebar-btn:hover {
+  color: #fff;
+}
+
+.nav-channel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.nav-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-call-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-green);
+}
+
+.nav-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+}
+
+.nav-status-dot.offline {
+  background-color: var(--text-dim);
+  box-shadow: none;
+}
+
+/* Stage Body */
+.stage-content-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 20px;
+  gap: 16px;
+}
+
+/* 3. Central Voice Call Box */
+.call-center-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 20px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hide big center circles when stream is active — they live in sidebar now */
+.call-center-card.screenshare-active .call-users-row {
+  display: none;
+}
+
+.call-center-card.screenshare-active {
+  padding: 12px;
+  gap: 10px;
+}
+
+.call-users-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+}
+
+.call-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  cursor: pointer;
+}
+
+.user-circle-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-circle);
+  background-size: cover;
+  background-position: center;
+  background-color: #1a233a;
+  border: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.call-circle-item.is-speaking .user-circle-avatar {
+  border-color: var(--accent-green-border);
+  box-shadow: 0 0 0 3px rgba(0, 230, 118, 0.25), 0 0 20px var(--accent-green-glow);
+  transform: scale(1.04);
+}
+
+.call-circle-item.is-disconnected {
+  opacity: 0.6;
+}
+
+.user-status-dot-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  border: 2px solid var(--bg-card);
+}
+
+.user-status-dot-badge.offline {
+  background-color: var(--text-dim);
+}
+
+.user-status-dot-badge.muted {
+  background-color: var(--btn-disconnect-text);
+}
+
+.user-circle-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.user-circle-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Video / Stream Viewport — dynamic aspect ratio, no black bars */
+.active-stream-viewport {
+  width: 100%;
+  max-width: 1000px;
+  /* Height is auto based on aspect ratio of actual captured content */
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  display: none;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.active-stream-viewport.visible {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.active-stream-video {
+  width: 100%;
+  height: 100%;
+  /* cover fills the box without black bars; video is clipped only if aspect ratio differs greatly */
+  object-fit: cover;
+  background: #000;
+  display: block;
+}
+
+/* When video's natural aspect ratio is known, switch to contain so nothing is cut off */
+.active-stream-video.use-contain {
+  object-fit: contain;
+}
+
+.stream-fullscreen-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.15rem;
+  z-index: 10;
+  transition: all 0.15s ease;
+}
+
+.stream-fullscreen-btn:hover {
+  background: var(--bg-pill-hover);
+  transform: scale(1.05);
+}
+
+/* ─── Custom CSS Fullscreen Overlay ─────────────────────────────────────────
+   Works 100% in Electron without browser fullscreen API permission issues.
+   Triggered by adding .stream-is-fullscreen to #streamViewport.
+─────────────────────────────────────────────────────────────────────────── */
+.active-stream-viewport.stream-is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  aspect-ratio: unset !important;
+  border-radius: 0 !important;
+  border: none !important;
+  z-index: 9999 !important;
+  background: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.active-stream-viewport.stream-is-fullscreen .active-stream-video {
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: contain !important; /* contain in true fullscreen so nothing is cropped */
+}
+
+.active-stream-viewport.stream-is-fullscreen .stream-fullscreen-btn {
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* Row of Pill Action Buttons */
+.call-pills-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-call-pill {
+  background-color: var(--bg-pill);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-call-pill:hover {
+  background-color: var(--bg-pill-hover);
+  color: #fff;
+}
+
+.btn-call-pill.active-on {
+  background-color: #fff;
+  color: #060913;
+}
+
+.btn-call-pill.active-muted {
+  background-color: rgba(255, 77, 79, 0.15);
+  color: var(--btn-disconnect-text);
+  border-color: rgba(255, 77, 79, 0.3);
+}
+
+.btn-call-pill.btn-pill-connect {
+  background-color: var(--accent-green);
+  color: #060913;
+  border: none;
+}
+
+.btn-call-pill.btn-pill-connect:hover {
+  background-color: #00c864;
+}
+
+.btn-call-pill.btn-pill-disconnect {
+  background-color: var(--btn-disconnect-bg);
+  color: var(--btn-disconnect-text);
+  border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
+.btn-call-pill.btn-pill-disconnect:hover {
+  background-color: var(--btn-disconnect-hover);
+}
+
+/* 4. Bottom Chat Stream */
+.chat-stream-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.chat-messages-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-bubble-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.chat-bubble-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.chat-bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chat-bubble-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.chat-bubble-author {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.chat-bubble-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chat-bubble-text {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.chat-input-bar-container {
+  padding: 12px 16px;
+  background: var(--bg-card-elevated);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.chat-input-box {
+  background-color: var(--bg-pill);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 44px;
+  gap: 10px;
+}
+
+.chat-text-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.92rem;
+  font-family: var(--font-main);
+}
+
+.chat-text-input::placeholder {
+  color: var(--text-muted);
+}
+
+.chat-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.chat-action-btn:hover {
+  color: #fff;
+}
+
+/* 5. Screen Share Source Picker Modal (Discord Style) */
+.screen-picker-modal {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  width: 90%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+
+.screen-picker-tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.picker-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.picker-tab-btn.active {
+  background: var(--bg-pill);
+  color: #fff;
+}
+
+.sources-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  overflow-y: auto;
+  max-height: 380px;
+  padding: 4px;
+}
+
+.source-item-card {
+  background: var(--bg-pill);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.15s ease;
+}
+
+.source-item-card:hover {
+  background: var(--bg-pill-hover);
+}
+
+.source-item-card.selected {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 12px rgba(0, 230, 118, 0.3);
+}
+
+.source-thumbnail-box {
+  width: 100%;
+  height: 110px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.source-thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.source-title-row {
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-header);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.source-app-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Modals General */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.profile-card-modal {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+.profile-modal-avatar-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-pill);
+  border: 3px solid var(--accent-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-modal-avatar-preview:hover::after {
+  content: 'Alterar';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.profile-form-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-text-input {
+  background: var(--bg-pill);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-family: var(--font-main);
+  outline: none;
+}
+
+.profile-text-input:focus {
+  border-color: var(--accent-green);
+}
+
+.profile-modal-actions {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.btn-modal-cancel {
+  flex: 1;
+  background: var(--bg-pill);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 10px 0;
+  border-radius: var(--radius-pill);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-modal-cancel:hover {
+  background: var(--bg-pill-hover);
+  color: #fff;
+}
+
+.btn-modal-save {
+  flex: 1;
+  background: var(--accent-green);
+  border: none;
+  color: #060913;
+  padding: 10px 0;
+  border-radius: var(--radius-pill);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-modal-save:hover {
+  background: #00c864;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-card-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: toastSlide 0.2s ease;
+}
+
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
