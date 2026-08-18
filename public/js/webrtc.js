@@ -222,11 +222,19 @@ class WebRTCManager {
 
         if (sdp.type === 'offer') {
           console.log('[WebRTC] Creating and sending answer...');
+
+          console.log('[DEBUG] Antes do setLocalDescription');
           await pc.setLocalDescription();
+          console.log('[DEBUG] Depois do setLocalDescription');
+
+          console.log('[DEBUG] Local description:', pc.localDescription);
+
+          console.log('[DEBUG] Enviando signal-answer...');
           this.socket.emit('signal-answer', {
             targetSocketId: senderSocketId,
             sdp: pc.localDescription
           });
+          console.log('[DEBUG] signal-answer enviado');
         }
       } catch (err) {
         console.error('[WebRTC] Error handling offer:', err);
