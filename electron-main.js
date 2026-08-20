@@ -9,7 +9,7 @@ const { Server } = require('socket.io');
 // Para conectar 2 PCs em redes diferentes, coloque a URL do seu Render aqui.
 // Exemplo: const APP_URL = 'https://seu-app.onrender.com';
 // Se deixar vazio (''), ele vai rodar um servidor local offline.
-const APP_URL = '';
+const APP_URL = 'https://duo-call.onrender.com';
 // =========================================================================
 
 let mainWindow = null;
