@@ -9,7 +9,13 @@ const { Server } = require('socket.io');
 // Para conectar 2 PCs em redes diferentes, coloque a URL do seu Render aqui.
 // Exemplo: const APP_URL = 'https://seu-app.onrender.com';
 // Se deixar vazio (''), ele vai rodar um servidor local offline.
-const APP_URL = 'https://duo-call.onrender.com';
+//
+// 🧪 MODO TESTE LOCAL: rode "npm run dev:local" (em vez de "npm run dev")
+// para forçar o app a ignorar o Render e usar o servidor interno local,
+// servindo os arquivos da pasta /public direto do seu disco. Assim você
+// testa sem afetar a sessão real de produção nem precisar de deploy.
+const FORCE_LOCAL = process.argv.includes('--local');
+const APP_URL = FORCE_LOCAL ? '' : 'https://duo-call.onrender.com';
 // =========================================================================
 
 let mainWindow = null;
@@ -284,6 +290,7 @@ function createWindow() {
     title: 'Duo',
     icon: path.join(__dirname, 'public', 'assets', 'icon.png'),
     backgroundColor: '#060913',
+    frame: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -350,7 +357,20 @@ ipcMain.handle('toggle-fullscreen', () => {
   return false;
 });
 
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
+ipcMain.on('window-toggle-maximize', () => {
+  if (!mainWindow) return;
+  mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+});
+ipcMain.on('window-close', () => mainWindow?.close());
+
 app.whenReady().then(() => {
+  if (APP_URL.startsWith('http')) {
+    console.log(`[Duo] Modo PRODUÇÃO — carregando de ${APP_URL}`);
+  } else {
+    console.log(`[Duo] Modo LOCAL — servindo /public em http://localhost:${PORT}`);
+  }
+
   if (!APP_URL.startsWith('http') && process.env.DUO_SKIP_SERVER !== '1') {
     startInternalServer();
   }

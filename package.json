@@ -8,6 +8,7 @@
     "server": "node server.js",
     "desktop": "electron electron-main.js",
     "dev": "electron electron-main.js",
+    "dev:local": "electron electron-main.js --local",
     "build:win": "electron-builder --win portable",
     "build:installer": "electron-builder --win nsis"
   },

@@ -14,17 +14,55 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="void-finale-overlay hidden" id="voidFinaleOverlay">
+    <div class="void-finale-particles" id="voidFinaleParticles" aria-hidden="true"></div>
+    <div class="void-finale-message">Você não deveria ter feito isso.</div>
+  </div>
+  <div class="void-fragment-layer hidden" id="voidFragmentLayer" aria-label="Fragmentos da fenda">
+    <button class="eclosao-rift-core" id="eclosaoRiftCore" type="button" aria-label="Despertar a Eclosão">
+      <span class="eclosao-rift-symbol" aria-hidden="true"></span>
+      <strong>ECLOSÃO</strong>
+    </button>
+  </div>
+  <div class="eclosao-transition hidden" id="eclosaoTransition" aria-hidden="true"><div class="eclosao-burst-core"></div><span>ECLOSÃO</span><small>A fenda rompeu o espaço-tempo</small></div>
+  <div class="eclosao-embers hidden" id="eclosaoEmbers" aria-hidden="true"></div>
+  <div class="rgb-cutscene-overlay hidden" id="rgbCutsceneOverlay">
+    <div class="rgb-glitter" id="rgbGlitter" aria-hidden="true"></div>
+    <div class="rgb-cutscene-title">RGB</div>
+  </div>
+  <div class="startup-overlay" id="startupOverlay">
+    <div class="startup-content">
+      <div class="startup-logo"><i class="ph-fill ph-heart"></i></div>
+      <div class="startup-greeting" id="startupGreeting">Bom dia</div>
+      <div class="startup-loading"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <div class="welcome-overlay hidden" id="welcomeOverlay">
+    <div class="welcome-content">
+      <div class="welcome-check"><i class="ph-bold ph-check"></i></div>
+      <div class="welcome-kicker">Bem-vindo</div>
+      <div class="welcome-name" id="welcomeName">Rayo</div>
+      <div class="welcome-line"></div>
+    </div>
+  </div>
+
+  <header class="custom-titlebar">
+    <div class="titlebar-brand" title="Nosso Espaço">
+      <i class="ph-fill ph-heart"></i>
+      <span>Nosso Espaço</span>
+    </div>
+    <span class="theme-live-clock" id="themeLiveClock">00:00</span>
+    <div class="titlebar-actions">
+      <button id="btnWindowMinimize" aria-label="Minimizar"><i class="ph ph-minus"></i></button>
+      <button id="btnWindowMaximize" aria-label="Maximizar"><i class="ph ph-square"></i></button>
+      <button id="btnWindowClose" class="titlebar-close" aria-label="Fechar"><i class="ph ph-x"></i></button>
+    </div>
+  </header>
   <div id="appLayout">
     
     <!-- 1. Left Couple Space Sidebar (Intimate & Useful) -->
     <aside class="couple-sidebar" id="coupleSidebar">
-      <div class="sidebar-top-title">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <i class="ph-fill ph-heart" style="color: var(--btn-disconnect-text);"></i>
-          <span>Nosso Espaço</span>
-        </div>
-      </div>
-
       <div class="sidebar-scroll-area">
         <!-- Couple Art Illustration Card -->
         <div class="couple-art-card" style="background-image: url('assets/couple-art.jpg');">
@@ -34,6 +72,28 @@
             <i class="ph-fill ph-sparkle" style="color: #ffd166;"></i>
           </div>
           <div class="couple-art-sub">Juntos no mesmo cantinho ✨</div>
+        </div>
+        <button class="sidebar-void-trigger" id="sidebarVoidTrigger" type="button" title="???">
+          <span class="sidebar-void-trigger-main"><i class="ph ph-prohibit"></i><strong>VOID</strong></span>
+          <small>O vazio despertou</small>
+        </button>
+        <button class="sidebar-eclosao-trigger" id="sidebarEclosaoTrigger" type="button">
+          <span class="sidebar-eclosao-trigger-main"><i class="ph-fill ph-star-four"></i><strong>ECLOSÃO</strong></span>
+          <small>A estrela nasceu</small>
+        </button>
+        <div class="sidebar-special-theme-menu" id="sidebarSpecialThemeMenu" aria-label="Escolher tema especial">
+          <span class="sidebar-special-theme-menu-title">TEMAS ESPECIAIS</span>
+          <div class="sidebar-special-theme-options">
+            <button class="sidebar-special-theme-option theme-choice-rgb" type="button" data-special-theme="rgb" title="Ativar RGB">
+              <i class="ph-fill ph-rainbow"></i><span>RGB</span>
+            </button>
+            <button class="sidebar-special-theme-option theme-choice-void" type="button" data-special-theme="void" title="Ativar VOID">
+              <i class="ph ph-prohibit"></i><span>VOID</span>
+            </button>
+            <button class="sidebar-special-theme-option theme-choice-eclosao" type="button" data-special-theme="supernova" title="Ativar Eclosão">
+              <i class="ph-fill ph-star-four"></i><span>ECLOSÃO</span>
+            </button>
+          </div>
         </div>
 
         <!-- Voice Users in Call — compact cards with speaking ring + badges -->
@@ -49,6 +109,7 @@
             <div class="sidebar-vc-info">
               <span class="sidebar-vc-name" id="sidebarLocalName">Você</span>
               <span class="sidebar-vc-sub" id="sidebarLocalSub">Em chamada</span>
+              <span class="sidebar-vc-theme" id="sidebarLocalTheme">Noite</span>
             </div>
             <div class="sidebar-vc-badges">
               <div class="sidebar-vc-badge badge-muted" id="sidebarLocalMutedBadge" title="Mutado">
@@ -69,6 +130,7 @@
             <div class="sidebar-vc-info">
               <span class="sidebar-vc-name" id="sidebarPartnerName">Usuário 2</span>
               <span class="sidebar-vc-sub" id="sidebarPartnerSub">Aguardando...</span>
+              <span class="sidebar-vc-theme" id="sidebarPartnerTheme">Noite</span>
             </div>
             <div class="sidebar-vc-badges">
               <div class="sidebar-vc-badge badge-muted" id="sidebarPartnerMutedBadge" title="Mutada">
@@ -122,9 +184,30 @@
           </button>
         </div>
 
+        <div class="theme-switcher" id="themeSwitcher" aria-label="Tema de cores">
+          <span class="theme-slider-thumb" id="themeSliderThumb" aria-label="Arrastar transição de tema"></span>
+          <button class="theme-option" data-theme="morning" title="Tema manhã"><i class="ph-fill ph-sun-horizon"></i><span>Manhã</span></button>
+          <button class="theme-option" data-theme="day" title="Tema dia"><i class="ph-fill ph-sun"></i><span>Dia</span></button>
+          <button class="theme-option" data-theme="afternoon" title="Tema tarde"><i class="ph-fill ph-cloud-sun"></i><span>Tarde</span></button>
+          <button class="theme-option" data-theme="night" title="Tema noite"><i class="ph-fill ph-moon"></i><span>Noite</span></button>
+        </div>
+        <button class="theme-void-toggle locked rgb-hidden" id="themeVoidToggle" title="Algo está escondido aqui"><i class="ph ph-prohibit"></i><span>VOID</span></button>
+        <button class="theme-supernova-toggle supernova-hidden" id="themeSupernovaToggle" title="Liberar a Eclosão"><i class="ph-fill ph-star-four"></i><span>ECLOSÃO</span></button>
+        <button class="theme-rgb-toggle locked" id="themeRgbToggle" title="Tema RGB bloqueado">
+          <i class="ph-fill ph-rainbow"></i><span>RGB</span>
+        </button>
+        <button class="theme-auto-toggle" id="themeAutoToggle" title="Alternar tema automático">
+          <i class="ph ph-clock"></i><span>Auto</span>
+        </button>
+        <div class="rgb-music-controls hidden" id="musicControls">
+          <label class="rgb-volume-control" title="Volume da música">
+            <i class="ph ph-speaker-high"></i>
+            <input id="rgbMusicVolume" type="range" min="0" max="100" value="30" aria-label="Volume da música">
+          </label>
+        </div>
+
         <div class="nav-right-actions">
           <div class="nav-call-status-badge">
-            <div class="nav-status-dot" id="navStatusDot" title="Status"></div>
             <span id="navStatusText" style="display: none;"></span>
           </div>
         </div>
@@ -166,9 +249,6 @@
               <video id="remoteStreamVideo" class="active-stream-video hidden" autoplay playsinline muted></video>
               <video id="localStreamVideo" class="active-stream-video hidden" autoplay playsinline muted></video>
             </div>
-            <button class="stream-fullscreen-btn" id="btnFullscreenStream" title="Tela Cheia (⛶)">
-              <i class="ph ph-corners-out"></i>
-            </button>
           </div>
 
           <!-- Audio Element for Partner Remote Sound -->
@@ -195,6 +275,10 @@
             </button>
           </div>
         </section>
+
+        <div class="stream-chat-resize-handle" id="streamChatResizeHandle" title="Arraste para redimensionar stream e chat">
+          <span></span>
+        </div>
 
         <!-- 4. Bottom Chat Stream Section -->
         <section class="chat-stream-section">

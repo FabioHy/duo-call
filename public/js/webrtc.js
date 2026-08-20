@@ -58,7 +58,11 @@ class WebRTCManager {
           noiseSuppression: true,
           autoGainControl: true
         },
-        video: video ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+        video: video ? {
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 60, max: 60 }
+        } : false
       });
       this.isVideoOn = video;
       console.log('[WebRTC] Local mic stream acquired');
@@ -391,7 +395,12 @@ class WebRTCManager {
       } else {
         // Standard browser getDisplayMedia
         stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: 'always', frameRate: { ideal: 30, max: 60 } },
+          video: {
+            cursor: 'always',
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 60, max: 60 }
+          },
           audio: false
         });
       }
@@ -418,8 +427,10 @@ class WebRTCManager {
             parameters.encodings = [{}];
           }
 
-          parameters.encodings[0].maxBitrate = 8_000_000;
+          // Reserve bitrate suficiente para tela Full HD com texto a 60 FPS.
+          parameters.encodings[0].maxBitrate = 20_000_000;
           parameters.encodings[0].maxFramerate = 60;
+          parameters.degradationPreference = 'maintain-resolution';
 
           await videoSender.setParameters(parameters);
         } else {
@@ -431,8 +442,10 @@ class WebRTCManager {
             parameters.encodings = [{}];
           }
 
-          parameters.encodings[0].maxBitrate = 8_000_000;
+          // Reserve bitrate suficiente para tela Full HD com texto a 60 FPS.
+          parameters.encodings[0].maxBitrate = 20_000_000;
           parameters.encodings[0].maxFramerate = 60;
+          parameters.degradationPreference = 'maintain-resolution';
 
           await sender.setParameters(parameters);
 
