@@ -162,7 +162,10 @@
 
           <!-- Active Screen Share / Video Viewport (Strictly Muted to prevent Audio Feedback Loop!) -->
           <div class="active-stream-viewport" id="streamViewport">
-            <video id="activeStreamVideo" class="active-stream-video" autoplay playsinline muted></video>
+            <div class="stream-videos-grid" id="streamVideosGrid">
+              <video id="remoteStreamVideo" class="active-stream-video hidden" autoplay playsinline muted></video>
+              <video id="localStreamVideo" class="active-stream-video hidden" autoplay playsinline muted></video>
+            </div>
             <button class="stream-fullscreen-btn" id="btnFullscreenStream" title="Tela Cheia (⛶)">
               <i class="ph ph-corners-out"></i>
             </button>

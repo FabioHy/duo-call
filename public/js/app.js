@@ -59,8 +59,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Stream Viewport & Partner Audio
   const streamViewport = document.getElementById('streamViewport');
-  const activeStreamVideo = document.getElementById('activeStreamVideo');
-  activeStreamVideo.muted = true;
+  const remoteStreamVideo = document.getElementById('remoteStreamVideo');
+  const localStreamVideo = document.getElementById('localStreamVideo');
+  remoteStreamVideo.muted = true;
+  localStreamVideo.muted = true;
+
+  function updateStreamViewportVisibility() {
+    const hasRemote = !!remoteStreamVideo.srcObject;
+    const hasLocal = !!localStreamVideo.srcObject;
+    
+    if (hasRemote || hasLocal) {
+      streamViewport.classList.add('visible');
+      callCenterCard.classList.add('screenshare-active');
+    } else {
+      streamViewport.classList.remove('visible', 'stream-is-fullscreen');
+      callCenterCard.classList.remove('screenshare-active');
+      streamIsFullscreen = false;
+      btnFullscreenStream.innerHTML = '<i class="ph ph-corners-out"></i>';
+      streamViewport.style.aspectRatio = '';
+    }
+
+    remoteStreamVideo.classList.toggle('hidden', !hasRemote);
+    localStreamVideo.classList.toggle('hidden', !hasLocal);
+  }
+
   const btnFullscreenStream = document.getElementById('btnFullscreenStream');
   const partnerAudio = document.getElementById('partnerAudio');
 
@@ -202,18 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ? stream
             : new MediaStream([track]);
 
-        activeStreamVideo.srcObject = videoStream;
-        activeStreamVideo.muted = true;
+        remoteStreamVideo.srcObject = videoStream;
+        remoteStreamVideo.muted = true;
 
-        activeStreamVideo.onloadedmetadata = () => {
-          console.log('[DEBUG] METADATA LOADED', {
-            width: activeStreamVideo.videoWidth,
-            height: activeStreamVideo.videoHeight
-          });
-
-          activeStreamVideo.play()
-            .then(() => console.log('[DEBUG] VIDEO PLAYING'))
-            .catch(err => console.error('[DEBUG] PLAY ERROR:', err));
+        remoteStreamVideo.onloadedmetadata = () => {
+          remoteStreamVideo.play().catch(err => console.error('[DEBUG] PLAY ERROR:', err));
         };
 
         track.onunmute = () => {
@@ -222,13 +237,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         track.onended = () => {
           console.log('[WebRTC] Remote video track ended');
-          activeStreamVideo.srcObject = null;
-          streamViewport.classList.remove('visible', 'stream-is-fullscreen');
-          callCenterCard.classList.remove('screenshare-active');
+          remoteStreamVideo.srcObject = null;
+          updateStreamViewportVisibility();
         };
 
-        streamViewport.classList.add('visible');
-        callCenterCard.classList.add('screenshare-active');
+        updateStreamViewportVisibility();
       }
     },
     onConnectionStateChange: (state) => {
@@ -250,16 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillShare.classList.remove('active-on');
       pillShareText.textContent = 'Compartilhar';
       sidebarLocalShareBadge.classList.remove('visible');
-      activeStreamVideo.srcObject = null;
-      activeStreamVideo.classList.remove('use-contain');
-      streamViewport.style.aspectRatio = '';
-      streamViewport.classList.remove('visible', 'stream-is-fullscreen');
-      callCenterCard.classList.remove('screenshare-active');
-      streamIsFullscreen = false;
-      btnFullscreenStream.innerHTML = '<i class="ph ph-corners-out"></i>';
-      document.removeEventListener('keydown', onEscFullscreen);
+      localStreamVideo.srcObject = null;
+      localStreamVideo.classList.remove('use-contain');
       socket.emit('update-media-state', { isScreenSharing: false });
       sounds.playScreenStart();
+      updateStreamViewportVisibility();
     }
   });
 
@@ -439,21 +447,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fullscreen implementation
   let streamIsFullscreen = false;
 
-  activeStreamVideo.addEventListener('loadedmetadata', () => {
-    const vw = activeStreamVideo.videoWidth;
-    const vh = activeStreamVideo.videoHeight;
+  remoteStreamVideo.addEventListener('loadedmetadata', handleVideoMetadata);
+  localStreamVideo.addEventListener('loadedmetadata', handleVideoMetadata);
+
+  function handleVideoMetadata(e) {
+    const video = e.target;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
     if (vw && vh) {
       const ratio = vw / vh;
       if (ratio < 1.6) {
-        activeStreamVideo.classList.add('use-contain');
+        video.classList.add('use-contain');
       } else {
-        activeStreamVideo.classList.remove('use-contain');
+        video.classList.remove('use-contain');
       }
       if (!streamViewport.classList.contains('stream-is-fullscreen')) {
-        streamViewport.style.aspectRatio = `${vw} / ${vh}`;
+        // Just use default 16/9 if multiple or adjust accordingly. We'll leave it as CSS auto or default grid for multi-view.
+        // streamViewport.style.aspectRatio = `${vw} / ${vh}`;
       }
     }
-  });
+  }
 
   function toggleStreamFullscreen() {
     streamIsFullscreen = !streamIsFullscreen;
@@ -481,7 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleStreamFullscreen();
   });
 
-  activeStreamVideo.addEventListener('dblclick', (e) => {
+  remoteStreamVideo.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    toggleStreamFullscreen();
+  });
+  localStreamVideo.addEventListener('dblclick', (e) => {
     e.stopPropagation();
     toggleStreamFullscreen();
   });
@@ -520,9 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillShare.innerHTML = '<i class="ph ph-screencast"></i> <span>Compartilhar</span>';
       sidebarLocalShareBadge.classList.remove('visible');
       sidebarLocalSub.textContent = 'Em chamada';
-      activeStreamVideo.srcObject = null;
-      streamViewport.classList.remove('visible');
-      callCenterCard.classList.remove('screenshare-active');
+      localStreamVideo.srcObject = null;
+      updateStreamViewportVisibility();
       return;
     }
 
@@ -614,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
     streamIsFullscreen = false;
     streamViewport.classList.remove('stream-is-fullscreen');
     streamViewport.style.aspectRatio = '';
-    activeStreamVideo.classList.remove('use-contain');
+    localStreamVideo.classList.remove('use-contain');
     btnFullscreenStream.innerHTML = '<i class="ph ph-corners-out"></i>';
 
     const withAudio = checkShareAudio.checked;
@@ -626,11 +642,11 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarLocalShareBadge.classList.add('visible');
       sidebarLocalSub.textContent = 'Compartilhando tela';
 
-      activeStreamVideo.srcObject = screenStream;
-      activeStreamVideo.muted = true;
-      activeStreamVideo.play().catch(e => console.log('Local stream play error:', e));
+      localStreamVideo.srcObject = screenStream;
+      localStreamVideo.muted = true;
+      localStreamVideo.play().catch(e => console.log('Local stream play error:', e));
 
-      streamViewport.classList.add('visible');
+      updateStreamViewportVisibility();
       callCenterCard.classList.add('screenshare-active');
       socket.emit('update-media-state', { isScreenSharing: true });
       showToast(`Transmitindo ${selectedSource.name}! Clique ⛶ ou duplo clique para Tela Cheia 🖥️`);
@@ -644,10 +660,10 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPillShare.innerHTML = '<i class="ph ph-screencast"></i> <span>Parar Tela</span>';
       sidebarLocalShareBadge.classList.add('visible');
       sidebarLocalSub.textContent = 'Compartilhando tela';
-      activeStreamVideo.srcObject = screenStream;
-      activeStreamVideo.muted = true;
-      streamViewport.classList.add('visible');
-      callCenterCard.classList.add('screenshare-active');
+      localStreamVideo.srcObject = screenStream;
+      localStreamVideo.muted = true;
+      localStreamVideo.play().catch(e => console.log(e));
+      updateStreamViewportVisibility();
       socket.emit('update-media-state', { isScreenSharing: true });
       showToast('Transmissão de tela iniciada! 🖥️');
     }
@@ -673,8 +689,9 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarLocalSub.textContent = 'Online';
       sidebarLocalMutedBadge.classList.remove('visible');
       sidebarLocalShareBadge.classList.remove('visible');
-      streamViewport.classList.remove('visible', 'stream-is-fullscreen');
-      callCenterCard.classList.remove('screenshare-active');
+      localStreamVideo.srcObject = null;
+      remoteStreamVideo.srcObject = null;
+      updateStreamViewportVisibility();
       hideCallButtons();
       socket.emit('call-state-changed', { isInCall: false });
       sounds.playLeave();
@@ -885,10 +902,10 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebarPartnerSub.textContent = 'Online';
       sidebarPartnerMutedBadge.classList.remove('visible');
       sidebarPartnerShareBadge.classList.remove('visible');
-      if (!webrtc.isScreenSharing) {
-        streamViewport.classList.remove('visible');
-        callCenterCard.classList.remove('screenshare-active');
-      }
+      
+      remoteStreamVideo.srcObject = null;
+      updateStreamViewportVisibility();
+
       showToast(`${partnerProfile.username} saiu da chamada`);
       sounds.playLeave();
     }
@@ -912,8 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.isScreenSharing) {
         sidebarPartnerShareBadge.classList.add('visible');
         sidebarPartnerSub.textContent = 'Compartilhando tela';
-        streamViewport.classList.add('visible');
-        callCenterCard.classList.add('screenshare-active');
+        // The remote video track will trigger updateStreamViewportVisibility via onRemoteTrack
         sounds.playScreenStart();
         showToast('Transmissão de tela iniciada pela namorada! 🖥️');
       } else {
@@ -921,10 +937,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sidebarPartnerUser.classList.contains('is-offline')) {
           sidebarPartnerSub.textContent = 'Em chamada';
         }
-        if (!webrtc.isScreenSharing) {
-          streamViewport.classList.remove('visible');
-          callCenterCard.classList.remove('screenshare-active');
-        }
+        remoteStreamVideo.srcObject = null;
+        updateStreamViewportVisibility();
       }
     }
   });
