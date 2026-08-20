@@ -4,6 +4,14 @@ const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 
+// =========================================================================
+// 🚀 CONFIGURAÇÃO PARA O APLICATIVO DESKTOP (.EXE)
+// Para conectar 2 PCs em redes diferentes, coloque a URL do seu Render aqui.
+// Exemplo: const APP_URL = 'https://seu-app.onrender.com';
+// Se deixar vazio (''), ele vai rodar um servidor local offline.
+const APP_URL = '';
+// =========================================================================
+
 let mainWindow = null;
 let serverInstance = null;
 const PORT = 3000;
@@ -299,9 +307,13 @@ function createWindow() {
   mainWindow.webContents.session.clearCache();
   mainWindow.webContents.session.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`, {
-    extraHeaders: 'pragma: no-cache\ncache-control: no-cache'
-  });
+  if (APP_URL.startsWith('http')) {
+    mainWindow.loadURL(APP_URL);
+  } else {
+    mainWindow.loadURL(`http://localhost:${PORT}`, {
+      extraHeaders: 'pragma: no-cache\ncache-control: no-cache'
+    });
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -339,7 +351,7 @@ ipcMain.handle('toggle-fullscreen', () => {
 });
 
 app.whenReady().then(() => {
-  if (process.env.DUO_SKIP_SERVER !== '1') {
+  if (!APP_URL.startsWith('http') && process.env.DUO_SKIP_SERVER !== '1') {
     startInternalServer();
   }
 
